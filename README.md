@@ -1,6 +1,6 @@
 # Death Relapse
 
-> **Khó, nhưng thua là do mình.**
+> **Khó, nhưng thua là do mình gà.**
 
 Game hành động 2D góc nhìn từ trên xuống (Unity, C#), làm trong đồ án chuyên ngành CMP436 (HUTECH, HK1 2026–2027).
 Game là công cụ để kiểm chứng một câu hỏi nghiên cứu về **độ khó công bằng**.
