@@ -12,9 +12,9 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành và kiểm tra di chuyển 8 hướng (`PlayerMovement.cs`) và camera bám mượt mà (`CameraFollow.cs`). Đã thực hiện commit đầu tiên cho toàn bộ project setup.
-- **Asset đã có:** model hiệp sĩ, animation Mixamo (idle, run with sword, gun play, slash), Animator Controller `PlayerAnimator`. Chưa có model kiếm, súng, boss.
-- **Việc đang dở:** Thiết kế bộ đòn của Boss và cơ chế Né hoàn hảo (Perfect Dodge / Dash) cho Player.
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `CameraFollow.cs`, `CREDITS.md`. Đã hoàn thành hệ thống đòn đánh báo trước của Boss (`BossAttackData.cs`, `BossAttackController.cs`) với mesh quạt đỏ điền dần bằng `Time.deltaTime` và kiểm tra va chạm thuần túy theo hình học XZ dùng chung thông số đã chốt.
+- **Asset đã có:** model hiệp sĩ (đã rig Mixamo), animation Mixamo. Model boss Stelae knight (đã import và gán vật liệu). Đã ghi nhận bản quyền trong `CREDITS.md`.
+- **Việc đang dở:** Gắn component `BossAttackController` vào Boss trong Editor, tạo các file ScriptableObject đòn đánh (0.6s, 1s, 2s) và test phím 1. Triển khai cơ chế Né (Dash / Perfect Dodge) cho Player.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
 
 ---
@@ -68,3 +68,25 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Thiết kế ScriptableObject cho hệ thống đòn đánh của boss và cơ chế Né (Dash) cho Player.
 - **Commit:** [AI] feat: khởi tạo dự án, di chuyển 8 hướng và camera follow
+
+## [2026-10-19 16:32] Tạo file CREDITS.md ghi nhận bản quyền 3D model và animation
+- **Công cụ/model:** Gemini Flash
+- **Yêu cầu của tôi (tóm tắt):** Tạo `CREDITS.md` cho model hiệp sĩ và model boss từ Sketchfab; ghi nhận việc tách xương để auto-rig bằng Mixamo và tách vũ khí model boss.
+- **AI đã làm (file tạo/sửa):** Tạo `CREDITS.md`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:** Trích xuất thông tin tác giả (ValeriyUA, Muru), concept art (Shuohan), link và giấy phép CC BY 4.0; ghi rõ các thay đổi chỉnh sửa (modifications) theo đúng điều khoản Creative Commons và quy định tại `GEMINI.md`. Gộp toàn bộ animation Mixamo vào mục cấp phép tương ứng.
+- **Chưa kiểm chứng / rủi ro:** Model boss đang trong quá trình chỉnh sửa bên ngoài (Blender/Maya), chưa import vào Unity.
+- **Cách kiểm tra đề xuất:** Mở file `CREDITS.md` kiểm tra đường link, tên tác giả và các mô tả thay đổi.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Nhập model boss sau khi chuẩn bị xong, triển khai cơ chế Né (Dash) cho Player.
+- **Commit:** Chưa commit (chờ người dùng yêu cầu/xác nhận)
+
+## [2026-10-20 19:35] Triển khai hệ thống báo đòn (telegraph) hình quạt và hitbox toán học cho Boss
+- **Công cụ/model:** Gemini Flash
+- **Yêu cầu của tôi (tóm tắt):** Tạo `BossAttackData.cs` (ScriptableObject) và `BossAttackController.cs`; 1 đòn đỏ cận quét quạt điền dần bằng `Time.deltaTime`, hết giờ kiểm tra trúng/hụt bằng khoảng cách XZ và góc quét từ dữ liệu chốt duy nhất, không dùng collider; hỗ trợ scale tốc độ Animator; phím thử 1; vẽ Gizmos cung quạt; cập nhật NguCanh.md và commit; hướng dẫn thiết lập trong Editor và 3 câu hỏi tự kiểm tra.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/Boss/BossAttackData.cs`, tạo `Assets/Scripts/Boss/BossAttackController.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:** Dùng chung một nguồn dữ liệu hình học (center, forward, radius, arcAngle) được chốt MỘT LẦN khi bắt đầu đòn cho cả việc dựng Mesh báo đòn và tính toán va chạm để đảm bảo 100% tính công bằng cho nghiên cứu A/B (không lệch pha khi boss xoay/di chuyển sau khi đã báo); dựng Mesh Triangle Fan bán kính 1 đơn vị và điều khiển độ phình bằng localScale XZ để tối ưu hiệu năng (chỉ cần 1 mesh dùng chung cho cả Fill và Outline); dùng `Time.deltaTime` trong Coroutine để kiểm soát thời gian thực tế chính xác tuyệt đối ở mọi mức khung hình; kiểm tra va chạm bằng công thức khoảng cách 2D XZ kết hợp `Vector3.Angle` tránh phụ thuộc vào Physics/Collider; nâng nhẹ Y (+0.015m và +0.002m) triệt tiêu hiện tượng Z-fighting trên sàn.
+- **Chưa kiểm chứng / rủi ro:** Chưa kiểm tra thực tế trong Unity Editor (chưa tạo GameObject quạt đỏ với Material URP Unlit Transparent, chưa gán tham chiếu vào BossAttackController và chưa chạy thử phím 1 để đo thời gian phản hồi thực tế).
+- **Cách kiểm tra đề xuất:** Thiết lập 2 GameObject rỗng (Fill, Outline) gắn MeshFilter/MeshRenderer với Material URP đỏ trong suốt; gắn BossAttackController lên Boss, gán Player Transform và Animator; tạo các asset BossAttackData với thời lượng 0.6s, 1s, 2s; nhấn Play, ấn phím 1 và quan sát Console log, vùng quạt điền dần và kết quả TRÚNG/HỤT khi Player đứng trong/ngoài vùng quét.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Gắn component trong Unity Editor, tạo các file ScriptableObject cấu hình đòn đánh, thử nghiệm phím 1 và tinh chỉnh góc quay của model Boss nếu cần.
+- **Commit:** [AI] feat: đòn đánh quạt đỏ của boss với telegraph điền dần và hitbox toán học
