@@ -12,9 +12,9 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `CameraFollow.cs`, `CREDITS.md`. Đã hoàn thành hệ thống đòn đánh báo trước của Boss (`BossAttackData.cs`, `BossAttackController.cs`) với mesh quạt đỏ điền dần bằng `Time.deltaTime` và kiểm tra va chạm thuần túy theo hình học XZ dùng chung thông số đã chốt.
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `CameraFollow.cs`, `CREDITS.md`. Đã nâng cấp hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) theo kiểu Dark Souls: vùng quạt trên sàn chỉ là cảnh báo (telegraph), sát thương thực tế đến từ thân kiếm quét `OverlapCapsuleNonAlloc` có nội suy `substeps` trong `LateUpdate` theo cửa sổ Animation Event (`OnHitWindowOpen` / `OnHitWindowClose`).
 - **Asset đã có:** model hiệp sĩ (đã rig Mixamo), animation Mixamo. Model boss Stelae knight (đã import và gán vật liệu). Đã ghi nhận bản quyền trong `CREDITS.md`.
-- **Việc đang dở:** Gắn component `BossAttackController` vào Boss trong Editor, tạo các file ScriptableObject đòn đánh (0.6s, 1s, 2s) và test phím 1. Triển khai cơ chế Né (Dash / Perfect Dodge) cho Player.
+- **Việc đang dở:** Thiết lập Layer `Player`, tạo `SwordBase`/`SwordTip` trên `Boss_Sword`, gắn `SwordHitbox` và `BossAnimationEventRelay`, gắn Animation Event tại frame 55 và 68 cho clip `Standing Melee Combo Red Attack`, chỉnh Speed = 1.25 và kiểm tra trong Unity Editor. Triển khai cơ chế Né (Dash / Perfect Dodge) cho Player.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
 
 ---
@@ -90,3 +90,14 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Gắn component trong Unity Editor, tạo các file ScriptableObject cấu hình đòn đánh, thử nghiệm phím 1 và tinh chỉnh góc quay của model Boss nếu cần.
 - **Commit:** [AI] feat: đòn đánh quạt đỏ của boss với telegraph điền dần và hitbox toán học
+
+## [2026-10-21 12:21] Chuyển hitbox đòn Boss sang lưỡi kiếm theo cửa sổ Animation Event kiểu Dark Souls
+- **Công cụ/model:** Gemini Pro (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Tách vùng quạt cảnh báo trên sàn khỏi việc gây sát thương; tạo `SwordHitbox.cs` quét `OverlapCapsuleNonAlloc` có nội suy `substeps` trong `LateUpdate`; tạo `BossAnimationEventRelay.cs` nhận `OnHitWindowOpen`/`OnHitWindowClose`; sửa `BossAttackController.cs` bỏ tự co giãn `animator.speed`, đồng bộ đóng/mở cửa sổ trúng theo Animation Event, đo độ lệch thời gian thực với `telegraphDuration`, kiểm tra hợp lệ `IsInsideLockedZone` (`[VALIDITY]`), và giữ khóa `isAttacking` đến khi Animator rời state đòn đánh; cập nhật Tooltip trong `BossAttackData.cs`.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/Boss/SwordHitbox.cs`, tạo `Assets/Scripts/Boss/BossAnimationEventRelay.cs`, sửa `Assets/Scripts/Boss/BossAttackController.cs`, sửa `Assets/Scripts/Boss/BossAttackData.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:** Chuyển kiểm tra va chạm lưỡi kiếm sang `LateUpdate` vì Animator cập nhật xương trước `LateUpdate`, giúp lấy đúng vị trí thực tế của kiếm trong frame đó; nội suy tuyến tính (`Vector3.Lerp`) cả gốc và mũi kiếm qua `substeps` bước kết hợp `Physics.OverlapCapsuleNonAlloc` với mảng buffer cấp sẵn để chống xuyên (tunneling) khi kiếm vung nhanh mà không sinh rác bộ nhớ (GC Alloc); tách vùng quạt thành cảnh báo thuần túy và ẩn ngay khi mở cửa sổ trúng, đồng thời dùng `IsInsideLockedZone` để cảnh báo `[VALIDITY]` nếu đường kiếm chạm người chơi ngoài vùng đã báo nhằm bảo đảm tính công bằng của thí nghiệm A/B; chờ Animator thực sự thoát khỏi state `attackStateName` và hết transition trước khi mở khóa `isAttacking` để chặn lỗi đánh đòn đúp.
+- **Chưa kiểm chứng / rủi ro:** Chưa kiểm tra trực tiếp trong Unity Editor (chưa tạo Layer `Player`, chưa đặt `SwordBase`/`SwordTip` trên `Boss_Sword`, chưa gắn `BossAnimationEventRelay` lên GameObject có Animator, chưa thêm Animation Event ở frame 55 và 68 trên clip FBX và chưa kiểm chứng độ khớp giữa Speed 1.25 của Animator state với `telegraphDuration = 0.8s`).
+- **Cách kiểm tra đề xuất:** Tạo Layer `Player` cho `Knight`; đặt `SwordBase` và `SwordTip` trên `Boss_Sword` và kiểm tra bằng Gizmos; gắn `SwordHitbox` và `BossAnimationEventRelay`; thêm Event `OnHitWindowOpen` (frame 55) và `OnHitWindowClose` (frame 68) vào clip `Standing Melee Combo Red Attack`, đặt Speed state `Red Attack` = 1.25; bấm Play và kiểm tra 4 tình huống: đứng trước mặt, vòng sau lưng lao vào khi kiếm đã quét qua, đứng ngoài bán kính, và bấm phím 1 liên tiếp 2 lần.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Thiết lập Layer, Empty mốc kiếm, Animation Event và Animator state trong Unity Editor theo hướng dẫn, sau đó chạy Play kiểm tra log thời gian gồng và cảnh báo `[VALIDITY]`.
+- **Commit:** [AI] refactor: chuyển hitbox boss sang lưỡi kiếm theo Animation Event

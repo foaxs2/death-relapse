@@ -30,7 +30,7 @@ public class BossAttackData : ScriptableObject
     [SerializeField] private float facingOffsetDegrees = -10f;
 
     [Header("Animation Synchronization")]
-    [Tooltip("Thời điểm trúng đòn trong clip animation gốc (giây). Đặt bằng 0 nếu không muốn co giãn tốc độ Animator.")]
+    [Tooltip("Không còn dùng (giữ lại để tương thích asset)")]
     [SerializeField] private float animationSecondsToImpact = 1.0f;
 
     // Public getters để truy xuất an toàn dữ liệu, tránh bị code khác vô tình chỉnh sửa lúc runtime
