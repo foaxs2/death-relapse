@@ -12,10 +12,10 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `CameraFollow.cs`, `CREDITS.md`. Đã nâng cấp hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) theo kiểu Dark Souls: vùng quạt trên sàn chỉ là cảnh báo (telegraph), sát thương thực tế đến từ thân kiếm quét `OverlapCapsuleNonAlloc` có nội suy `substeps` trong `LateUpdate` theo cửa sổ Animation Event (`OnHitWindowOpen` / `OnHitWindowClose`).
-- **Asset đã có:** model hiệp sĩ (đã rig Mixamo), animation Mixamo. Model boss Stelae knight (đã import và gán vật liệu). Đã ghi nhận bản quyền trong `CREDITS.md`.
-- **Việc đang dở:** Thiết lập Layer `Player`, tạo `SwordBase`/`SwordTip` trên `Boss_Sword`, gắn `SwordHitbox` và `BossAnimationEventRelay`, gắn Animation Event tại frame 55 và 68 cho clip `Standing Melee Combo Red Attack`, chỉnh Speed = 1.25 và kiểm tra trong Unity Editor. Triển khai cơ chế Né (Dash / Perfect Dodge) cho Player.
-- **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) đã chuyển sang animation `Great Sword Slash` (frame 25 mở hitbox, Speed 0.85, `TelegraphDuration = 0.833s`, `Radius = 3.4m`, `Arc = 120°`, `Offset = -50°`).
+- **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Sword And Shield Death`...). Model boss Stelae knight + animation `Great Sword Slash`.
+- **Việc đang dở:** Triển khai Phần 2 (sát thương đòn đánh của Boss `75 HP` và hệ thống máu `PlayerHealth` `300 HP` kèm phản ứng trúng đòn / chết) và Phần 3 (thanh máu UI).
+- **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận); rìa đầu cung chém vẫn có thể báo `[VALIDITY]` nhẹ nếu đứng sát nách do quỹ đạo kiếm vung thực tế không phải cung tròn tâm chân hoàn hảo (chấp nhận).
 
 ---
 
@@ -101,3 +101,97 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Thiết lập Layer, Empty mốc kiếm, Animation Event và Animator state trong Unity Editor theo hướng dẫn, sau đó chạy Play kiểm tra log thời gian gồng và cảnh báo `[VALIDITY]`.
 - **Commit:** [AI] refactor: chuyển hitbox boss sang lưỡi kiếm theo Animation Event
+
+## [2026-10-22 15:43] Khắc phục lỗi kẹt Animation Event, đồng bộ hình học quạt đỏ và làm mượt hồi chiêu
+- **Công cụ/model:** Gemini Flash (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Giải quyết lỗi timeout 2.30s và cảnh báo lệch thời gian gồng; giải đáp tình trạng không còn lỗi đỏ/vàng khi đứng trong tầm chém; hướng dẫn cắt bỏ nhát chém thứ 2 trên clip FBX; tinh chỉnh thông số hình học quạt đỏ theo cảnh báo `[VALIDITY]`; làm mượt chuyển động từ chém về Idle.
+- **AI đã làm (file tạo/sửa):** Cập nhật `Assets/Scripts/Boss/BossAttackController.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:** Bổ sung cơ chế chống kẹt trigger: trong `TriggerAttack()` chặn gọi đòn mới nếu Animator vẫn đang ở state tấn công hoặc đang transition; trong nhánh timeout tự động thu hồi trigger bằng `ResetTrigger` để tránh kích hoạt muộn; hướng dẫn người dùng bỏ tích `Has Exit Time` ở transition `2hand Idle -> Red Attack` để đòn đánh phản hồi tức thì khi bấm phím 1; hướng dẫn cắt bớt nhát chém thứ 2 trên FBX (End frame ~82) và đặt lại Event ở frame 55 và 68; nâng `Radius` lên 3.3m và `ArcAngleDegrees` lên 180° trong `BossAttack_Slash_0.6s.asset` để triệt tiêu cảnh báo `[VALIDITY]`, bảo đảm vùng cảnh báo bao trọn 100% tầm chạm của lưỡi kiếm; tăng `Transition Duration` lên 0.35s–0.45s cho transition về Idle để động tác chuyển thế mượt mà tự nhiên.
+- **Chưa kiểm chứng / rủi ro:** Người dùng đã kiểm tra thành công trong Unity Editor (0 lỗi đỏ, nhận diện trúng/hụt chính xác, không còn cảnh báo lệch hình học).
+- **Cách kiểm tra đề xuất:** Bấm phím 1 kiểm tra thời gian gồng đạt 0.8s, quan sát nhát chém đơn kết thúc và chuyển mượt về Idle, di chuyển quanh rìa quạt đỏ xác nhận không còn log `[VALIDITY]`.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Triển khai cơ chế Né (Dash) với thời gian bất tử (I-frame) và Perfect Dodge cho Player.
+- **Commit:** Chưa commit (chờ người dùng yêu cầu/xác nhận)
+
+
+
+
+
+
+---
+
+# NHẬT KÝ AI – TUẦN 2 (20/10–21/10/2026) [Web] 
+## [2026-10-20] Soát CREDITS.md và chọn thứ tự ưu tiên boss/hiệp sĩ
+- **Công cụ/model:** Claude
+- **Yêu cầu của tôi (tóm tắt):** Kiểm tra bản CREDITS.md; hỏi nên làm animation cho nhân vật hay boss trước.
+- **AI đã làm (file tạo/sửa):** Không tạo hay sửa file; chỉ nhận xét và đề xuất.
+- **Quyết định kỹ thuật và lý do:** Claude chỉ ra mục 1.2 (boss) đã lỗi thời, danh sách animation chưa khớp clip thật (ghi Slash.fbx khi chưa có), dòng giấy phép Mixamo là diễn giải của AI chứ không trích điều khoản, và CC BY cần ghi công ở nơi người chơi thấy (itch.io/bản build). Claude đề xuất làm boss trước vì mục tiêu ngày 20/10 là một đòn đỏ chạy trọn vẹn, chỉ cần boss.
+- **Chưa kiểm chứng / rủi ro:** Nội dung điều khoản Mixamo chưa đọc trực tiếp. Dòng "royalty-free" do AI sinh trong CREDITS.md chưa đối chiếu.
+- **Cách kiểm tra đề xuất:** Mở trang gốc Sketchfab đối chiếu tên tác giả và giấy phép; đọc điều khoản trên trang Mixamo.
+- **Tôi đã kiểm tra / chỉnh sửa:** Đã sửa mục 1.2 của CREDITS.md theo thực tế. Đã mở trang Sketchfab đối chiếu giấy phép hiệp sĩ rồi. Tôi quyết định làm boss trước, phần animation của CREDITS.md sửa sau khi xong animation.
+- **Việc tiếp theo:** Cập nhật mục Animations, thêm Audio và credits trong bản build.
+- **Commit:** Chưa
+
+## [2026-10-20] Import animation, rig Humanoid, dựng Animator Controller cho boss 
+- **Công cụ/model:** Claude
+- **Yêu cầu của tôi (tóm tắt):** Clip roll của hiệp sĩ và các clip boss báo cảnh báo Rig; hỏi cách tổ chức thư mục animation; xin hướng dẫn chi tiết animation boss; kiểm tra cấu hình Animator tôi tự dựng.
+- **AI đã làm (file tạo/sửa):** Không sửa file, chỉ hướng dẫn.
+- **Quyết định kỹ thuật và lý do:** Claude giải thích cảnh báo vàng "Copied Avatar Rig mis-match" là sai lệch tỉ lệ xương giữa clip và Avatar nguồn (roll sai số hơn 800 mm vì tải từ mannequin mặc định; boss chỉ 58 mm ở một xương); đề xuất tải lại roll với đúng nhân vật hoặc đổi sang Create From This Model; xác nhận chuyển folder trong Unity (không dùng Explorer) không ảnh hưởng game vì tham chiếu theo GUID; hướng dẫn Scale Factor trước, rồi Animator Controller (Idle <-> Red Attack, trigger AttackRed, Has Exit Time). Claude cũng chỉ ra combo 2 nhát vi phạm luật "một đòn = một telegraph = một lần trúng".
+- **Chưa kiểm chứng / rủi ro:** Sai số 58 mm ở LeftUpLeg của clip boss chưa xử lý tận gốc (có thể tải lại clip từ Mixamo với đúng model boss).
+- **Cách kiểm tra đề xuất:** Xem bằng mắt trong Preview và trong Scene khi Play; bấm trigger trong cửa sổ Animator.
+- **Tôi đã kiểm tra / chỉnh sửa:** Roll của hiệp sĩ hết cảnh báo sau khi làm theo hướng dẫn. Đặt Scale Factor boss 0,5. Với clip boss, tôi xem bằng mắt trong Preview và chấp nhận cảnh báo 58 mm. Tôi tự quyết định bỏ clip SpinRedAttack (vì báo đỏ vàng nhiều ở chỗ Root Transform) và dùng clip combo "Standing Melee Combo Red Attack", thay clip Idle bị đơ bằng clip khác, dựng Animator Controller và xác nhận boss ra đòn khi bấm trigger.
+- **Việc tiếp theo:** Gắn kiếm vào tay boss; ghi mốc thời gian trong clip.
+- **Commit:** Chưa
+
+## [2026-10-20] Gắn kiếm vào tay boss
+- **Công cụ/model:** Claude
+- **Yêu cầu của tôi (tóm tắt):** Hướng dẫn gắn Boss_Sword vào tay boss; sau khi Reset Transform kiếm biến mất.
+- **AI đã làm (file tạo/sửa):** Không sửa file; hướng dẫn tạo SwordSocket dưới mixamorig:RightHand và chẩn đoán kiếm "mất" (gốc pivot lệch hoặc tỉ lệ ẩn).
+- **Quyết định kỹ thuật và lý do:** Dùng Empty SwordSocket để chỉnh tư thế cầm mà không đụng xương; chẩn đoán kiếm quá nhỏ do Scale Factor khác thân boss.
+- **Chưa kiểm chứng / rủi ro:** Scale Factor 55 của kiếm là con số tôi tự chỉnh bằng mắt, chưa đối chiếu kỹ với tỉ lệ boss.
+- **Cách kiểm tra đề xuất:** So chiều dài kiếm với chiều cao boss và hiệp sĩ; Pause lúc boss chém và chỉnh vị trí/góc xoay.
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi tự đặt Scale Factor kiếm 55, chỉnh hướng mũi kiếm khớp tay khi chém và xác nhận kiếm không lệch.
+- **Việc tiếp theo:** Đo mốc thời gian trong clip.
+- **Commit:** Chưa
+
+## [2026-10-20] Đo mốc thời gian và hình học đòn quét
+- **Công cụ/model:** Claude
+- **Yêu cầu của tôi (tóm tắt):** Hướng dẫn ghi mốc thời gian trong clip; xác định tầm với và góc quét của kiếm.
+- **AI đã làm (file tạo/sửa):** Không sửa file; hướng dẫn đọc frame, tính lại số liệu tôi báo, hướng dẫn đo bằng Cube.
+- **Quyết định kỹ thuật và lý do:** Claude phát hiện tôi đọc nhầm "4:19" (giây:frame, tức 4 giây 19 frame) thành 4,19 giây và tính lại bảng theo frame ÷ 30; đề xuất cắt Start = 25 để bỏ đoạn dẫn (nếu không vùng đỏ chạy 0,83 giây khi boss chưa gồng, làm lệch thời gian báo đòn thực); ban đầu đề xuất frame impact là 60, tôi sửa lại thành 55; Claude phát hiện cung quét không phải 360° mà nhỏ hơn 180°, nên đổi hình vùng cảnh báo từ tròn sang quạt (radius, arcAngle, facingOffset); phát hiện cung quét nằm ở nửa -Z trong khi Boss.forward là +Z, đề xuất xoay Boss_Body 180° thay vì xoay Boss gốc.
+- **Chưa kiểm chứng / rủi ro:** Phép đo Cube bị sai ở các lần đầu (Cube Scale 1, công cụ Move bị nhầm với Hand); số đo cuối dùng Cube Scale 0,1.
+- **Cách kiểm tra đề xuất:** Đo lại bằng Cube 0,1 ở các frame 55, 60, 65; so khớp hai cạnh quạt với vị trí kiếm bằng Gizmos.
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi tự đo bằng Cube trong Play mode ở ba thời điểm (đầu, giữa, cuối cung); tự chốt frame impact = 55 (frame 60 là đã vung nửa cung); xác nhận Boss giữ Position 0,0,0 suốt hai nhát (Root Motion tắt); xoay Boss_Body Y = 180 và đo lại: tọa độ cuối cung đối xứng với lần đo trước, xác nhận hướng đã đúng. Kết quả: mũi kiếm xa nhất khoảng 2,98 m, cung khoảng 143° (+59° sang -84°).
+- **Việc tiếp theo:** Viết BossAttackController với vùng quạt.
+- **Commit:** Chưa
+
+## [2026-10-21] Vùng cảnh báo hình quạt: soạn prompt, soát code, phát hiện lỗi thiết kế
+- **Công cụ/model:** Claude (soạn prompt, soát code); Gemini (viết code BossAttackData.cs và BossAttackController.cs)
+- **Yêu cầu của tôi (tóm tắt):** Nhờ Claude soạn prompt cho Gemini viết vùng quạt đỏ điền dần, kiểm tra trúng bằng hình học, thời lượng đổi bằng ScriptableObject; sau đó gửi code cho Claude soát.
+- **AI đã làm (file tạo/sửa):** Gemini tạo Assets/Scripts/Boss/BossAttackData.cs và BossAttackController.cs (không tạo Scene/Prefab/Material). Claude soát code, không sửa file.
+- **Quyết định kỹ thuật và lý do:** Chốt center/forward/radius/arc một lần khi bắt đầu đòn để vùng vẽ và kiểm tra trúng cùng một nguồn dữ liệu; dùng khoảng cách XZ và góc thay vì OverlapSphere/Collider. Claude chỉ ra các điểm: trigger Animator mặc định "Slash" không khớp Animator, Fill/Outline không được làm con của Boss, bấm phím 1 khi boss chưa về Idle gây đòn đúp, kiểm tra trúng chỉ dùng một điểm là pivot của người chơi.
+- **Chưa kiểm chứng / rủi ro:** Claude đã nhận ra trước khi chạy rằng kiểm tra trúng tức thời bằng cả quạt có thể phản trực giác, nhưng đánh giá chưa đủ mức nghiêm trọng.
+- **Cách kiểm tra đề xuất:** Test 0,6/1/2s; đứng trong quạt, sau lưng, ngoài bán kính, sát hai cạnh; so Gizmos với vùng đỏ.
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi tự dựng thiết lập trong Unity (hai object Fill/Outline, material, SO), chạy test và chỉnh telegraph về khoảng 0,8s cho cảm giác trúng đòn đẹp. Tôi tự phát hiện vấn đề: vùng đỏ không phù hợp với animation chém, và nếu boss chém qua người mà tôi chui vào phạt thì vẫn bị vùng quạt gây sát thương dù kiếm không trúng. Tôi quyết định bỏ hướng "vùng quạt gây sát thương".
+- **Việc tiếp theo:** Chuyển sang hitbox kiếm kiểu Dark Souls; vùng quạt chỉ cảnh báo.
+- **Commit:** [điền: commit bản vùng quạt trước khi đổi hướng, nếu có]
+
+## [2026-10-21] Đổi sang hitbox kiếm kiểu Dark Souls
+- **Công cụ/model:** Claude (phân tích hướng đi, soạn prompt, soát báo cáo); [Gemini 3.8 flash (high)] (viết code)
+- **Yêu cầu của tôi (tóm tắt):** Hỏi có nên làm hitbox kiểu Dark Souls và báo đòn kiểu nháy màu như Stellar Blade, có nên đổi camera sang góc nhìn thứ ba có khóa mục tiêu, và có nên hoãn việc xét A/B; sau đó nhờ Claude soạn prompt và hướng dẫn chỉnh trong Unity.
+- **AI đã làm (file tạo/sửa):** Model viết code tạo Assets/Scripts/Boss/SwordHitbox.cs, BossAnimationEventRelay.cs, sửa BossAttackController.cs và BossAttackData.cs (chỉ sửa Tooltip), cập nhật NguCanh.md. Claude không sửa file.
+- **Quyết định kỹ thuật và lý do:** Sát thương đến từ capsule dọc lưỡi kiếm trong cửa sổ trúng do Animation Event bật/tắt (frame 55 mở, frame 68 đóng), kiểm tra trong LateUpdate với nội suy 4 bước giữa hai frame để chống xuyên người; vùng quạt chỉ cảnh báo và ẩn khi cửa sổ trúng mở; log "[VALIDITY]" khi trúng ngoài vùng quạt để kiểm tra vùng cảnh báo có khớp đường kiếm không. Claude đổi lời khuyên cũ của chính nó ("đừng gắn Collider lên kiếm") vì hitbox giờ là kiếm. Claude khuyến nghị không đổi camera ở Lớp 1 (vùng cảnh báo trên sàn là biến nghiên cứu, cần nhìn từ trên xuống; tốn 8-12 giờ) và không bỏ B (nếu bỏ vùng sàn thì B chỉ còn thêm âm thanh).
+- **Chưa kiểm chứng / rủi ro:** (1) Báo cáo của model ghi "hoàn thiện 100%" và Console 0 Error/0 Warning, nhưng Console sạch chỉ chứng minh không có lỗi biên dịch; cảnh báo [VALIDITY] biến mất do tôi nới vùng quạt (radius 3,0 lên 3,3 m, arc 160° lên 180°) chứ chưa kiểm độc lập. (2) Vùng quạt 180° rộng hơn cung kiếm đo được (khoảng 143°), có thể có chỗ nằm trong vùng đỏ mà kiếm không quét tới (cảnh báo sai với nhóm B). (3) Chưa có số liệu "độ chính xác vùng cảnh báo".
+- **Cách kiểm tra đề xuất:** Đứng sát trước mặt boss khi kiếm bắt đầu chém (phải trúng); chạy vòng ra sau lưng sau khi kiếm quét xong rồi lao vào (không trúng); đứng ngoài radius; đứng 8-10 vị trí trong quạt (nhất là hai cạnh, góc xa) và ghi số lần trúng; bấm phím 1 hai lần liên tiếp; xem log thời gian thực gần 0,8s.
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi tự quyết định thử hướng hitbox kiếm trước khi chốt (chưa chốt bỏ camera thứ ba hay hoãn A/B). Tôi tự thiết lập trong Unity: Layer Player cho Knight, SwordBase/SwordTip, gắn script, hai Animation Event ở frame 55 và 68, Speed 1,25 cho state Red Attack, chỉnh transition (Idle sang Red Attack không Exit Time duration 0,02; Red Attack về Idle duration 0,35-0,45). Tôi tự cắt End của clip xuống khoảng 82 để bỏ nhát 2 (giữ nhát 1), sau đó kéo lại hai event về frame 55 và 68. Tôi đọc log [VALIDITY] (mũi kiếm 3,21 m, góc 87,3°) và nới asset lên 3,3 m và 180°. [Kết quả bài test thấy ổn định và không hiển thị báo cáo dính đòn ngoài vùng.]
+
+## [2026-10-30 17:08] Triển khai cơ chế lăn né đòn (Roll Dodge) có I-frame và đổi đòn chém Boss sang Great Sword Slash
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Lên kế hoạch 3 phần (Lăn né đòn có I-frame, Máu nhân vật 300 HP + sát thương Boss 75 HP kèm hoạt ảnh trúng đòn/chết, Thanh máu UI màu đỏ); thực hiện Phần 1 với phím Left Shift và animation `Sprinting Forward Roll`; hướng dẫn chỉnh animation lăn nhanh hơn; hướng dẫn đổi đòn đánh Boss sang `Great Sword Slash` và tinh chỉnh khớp vùng quạt đỏ; cập nhật `NguCanh.md` và commit Phần 1.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/Player/PlayerDodge.cs`, sửa `Assets/Scripts/Player/PlayerMovement.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:** Tách script `PlayerDodge.cs` riêng nhưng gọi qua hàm `MoveWithExternalVelocity` của `PlayerMovement.cs` để đảm bảo mỗi frame chỉ gọi `CharacterController.Move` duy nhất 1 lần cùng trọng lực bám sàn; dùng `InputActionReference` gắn vào action `Player/Sprint` (Left Shift); dùng `AnimationCurve` điều chỉnh vận tốc lướt đầu nhanh cuối chậm tự nhiên; tách cửa sổ bất tử (`iFrameStartTime`, `iFrameDuration`) thành cờ `IsInvulnerable` độc lập với tổng thời gian lăn (`rollDuration`) để dễ cân bằng độ khó; hướng dẫn dời `OnHitWindowOpen` của clip `Great Sword Slash` sang frame 25 (Speed 0.85, `TelegraphDuration = 0.833333s`, `Radius = 3.4m`, `Arc = 120°`, `FacingOffset = -50°`) để giảm thiểu sai lệch vùng quạt ở đầu cú vung kiếm.
+- **Chưa kiểm chứng / rủi ro:** Ở rìa đầu cung chém nếu đứng sát bên hông phải của Boss vẫn có thể xuất hiện cảnh báo `[VALIDITY]` do quỹ đạo vung kiếm 3D từ vai không phải hình quạt tròn đồng tâm hoàn hảo với gốc chân Boss.
+- **Cách kiểm tra đề xuất:** Chạy Play, bấm Left Shift kiểm tra lăn theo hướng WASD hoặc hướng mặt, kiểm tra Gizmo cầu xanh ngọc I-frame trong Scene View; bấm phím 1 kiểm tra Boss chém `Great Sword Slash` khớp thời gian vùng quạt đỏ.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Thực hiện Phần 2: Thêm thông số sát thương (`75 HP`) vào `BossAttackData` và viết `PlayerHealth.cs` (`300 HP`, miễn sát thương khi đang `IsInvulnerable`, kích hoạt animation `CharacterImpact` khi trúng đòn và `Sword And Shield Death` khi hết máu).
+- **Commit:** [AI] feat: cơ chế lăn né đòn có i-frame và cập nhật đòn chém boss

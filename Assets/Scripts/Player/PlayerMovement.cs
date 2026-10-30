@@ -23,7 +23,7 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float groundedGravity = -2f;
 
     [Header("State Control")]
-    [Tooltip("Cờ khóa di chuyển (dành cho Dash, tấn công hoặc bị choáng sau này)")]
+    [Tooltip("Cờ khóa di chuyển (dành cho Dash, lăn né, tấn công hoặc bị choáng)")]
     [SerializeField] private bool isMovementLocked = false;
 
     // Component tham chiếu đã được cache sẵn trong Awake để tránh gọi GetComponent trong Update
@@ -32,6 +32,9 @@ public class PlayerMovement : MonoBehaviour
 
     // Vận tốc theo trục Y (thẳng đứng) do trọng lực tích lũy
     private float verticalVelocity;
+
+    // Hướng input thế giới hiện tại (dùng cho các cơ chế khác như né đòn)
+    private Vector3 currentInputDirection = Vector3.zero;
 
     // Cache mã băm tên parameter của Animator để tối ưu hiệu năng CPU
     private static readonly int SpeedHash = Animator.StringToHash("Speed");
@@ -43,7 +46,12 @@ public class PlayerMovement : MonoBehaviour
     }
 
     /// <summary>
-    /// Cho phép các script khác (ví dụ: PlayerDash sau này) tạm thời khóa hoặc mở khóa di chuyển.
+    /// Hướng di chuyển mong muốn hiện tại từ input của người chơi (trên mặt phẳng XZ).
+    /// </summary>
+    public Vector3 CurrentInputDirection => currentInputDirection;
+
+    /// <summary>
+    /// Cho phép các script khác (ví dụ: PlayerDodge) tạm thời khóa hoặc mở khóa di chuyển.
     /// </summary>
     public void SetMovementLocked(bool locked)
     {
@@ -89,26 +97,33 @@ public class PlayerMovement : MonoBehaviour
     {
         Vector2 input = Vector2.zero;
 
-        // Chỉ đọc input khi người chơi không bị khóa di chuyển
-        if (!isMovementLocked && moveAction != null && moveAction.action != null)
+        // Luôn đọc input để cập nhật hướng currentInputDirection (phục vụ né theo hướng WASD)
+        if (moveAction != null && moveAction.action != null)
         {
             input = moveAction.action.ReadValue<Vector2>();
         }
 
         // Chuyển đổi input 2D thành vector hướng 3D theo trục thế giới (camera cố định)
-        Vector3 moveDirection = new Vector3(input.x, 0f, input.y);
+        currentInputDirection = new Vector3(input.x, 0f, input.y);
 
         // Chuẩn hóa vector nếu độ dài lớn hơn 1 để đi chéo không bị nhanh hơn đi thẳng
-        if (moveDirection.sqrMagnitude > 1f)
+        if (currentInputDirection.sqrMagnitude > 1f)
         {
-            moveDirection.Normalize();
+            currentInputDirection.Normalize();
+        }
+
+        // Nếu bị khóa di chuyển (đang né, choáng, hoặc animation đòn đánh), chỉ áp dụng trọng lực bám sàn
+        if (isMovementLocked)
+        {
+            UpdateAnimator(0f);
+            return;
         }
 
         // Xoay nhân vật theo hướng di chuyển (chỉ xoay khi có input)
-        UpdateRotation(moveDirection);
+        UpdateRotation(currentInputDirection);
 
         // Vận tốc ngang mong muốn
-        Vector3 horizontalVelocity = moveDirection * moveSpeed;
+        Vector3 horizontalVelocity = currentInputDirection * moveSpeed;
 
         // Xử lý gia tốc trọng lực bám đất
         ApplyGravity();
@@ -117,8 +132,20 @@ public class PlayerMovement : MonoBehaviour
         Vector3 motion = (horizontalVelocity + Vector3.up * verticalVelocity) * Time.deltaTime;
         characterController.Move(motion);
 
-        // Cập nhật giá trị Speed cho Animator (0 khi đứng yên hoặc khi bị khóa di chuyển)
+        // Cập nhật giá trị Speed cho Animator
         UpdateAnimator(horizontalVelocity.magnitude);
+    }
+
+    /// <summary>
+    /// Cho phép các hành vi đặc biệt (như cú lăn né PlayerDodge) áp dụng vận tốc di chuyển ngang
+    /// nhưng vẫn giữ nguyên xử lý trọng lực và bám sàn chuẩn của PlayerMovement.
+    /// </summary>
+    public void MoveWithExternalVelocity(Vector3 horizontalVelocity)
+    {
+        ApplyGravity();
+        Vector3 motion = (horizontalVelocity + Vector3.up * verticalVelocity) * Time.deltaTime;
+        characterController.Move(motion);
+        UpdateAnimator(0f); // Giữ Speed = 0 để không bị chồng chéo chuyển động chạy trong Animator
     }
 
     /// <summary>

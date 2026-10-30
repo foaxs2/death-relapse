@@ -146,6 +146,16 @@ public class BossAttackController : MonoBehaviour
             return;
         }
 
+        // Đảm bảo Animator đã hoàn toàn về Idle trước khi bắt đầu đòn mới (chống kẹt trigger)
+        if (animator != null && !string.IsNullOrEmpty(attackStateName))
+        {
+            AnimatorStateInfo currentInfo = animator.GetCurrentAnimatorStateInfo(0);
+            if (currentInfo.IsName(attackStateName) || animator.IsInTransition(0))
+            {
+                return;
+            }
+        }
+
         attackCoroutine = StartCoroutine(AttackRoutine());
     }
 
@@ -250,6 +260,13 @@ public class BossAttackController : MonoBehaviour
             {
                 Debug.LogError($"[BossAttackController] HỦY ĐÒN '{currentAttack.AttackName}': Quá thời gian chờ ({maxWaitForOpen:F2}s) " +
                                "mà chưa nhận được Animation Event 'OnHitWindowOpen'. Hãy kiểm tra lại Event trên clip hoặc BossAnimationEventRelay.");
+                
+                // Thu hồi trigger để không bị kích hoạt trễ khi Animator về Idle
+                if (animator != null && !string.IsNullOrEmpty(currentAttack.AnimatorTrigger))
+                {
+                    animator.ResetTrigger(currentAttack.AnimatorTrigger);
+                }
+
                 HideTelegraphVisuals();
                 isAttacking = false;
                 attackCoroutine = null;
