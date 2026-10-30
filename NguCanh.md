@@ -12,9 +12,9 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) đã chuyển sang animation `Great Sword Slash` (frame 25 mở hitbox, Speed 0.85, `TelegraphDuration = 0.833s`, `Radius = 3.4m`, `Arc = 120°`, `Offset = -50°`).
-- **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Sword And Shield Death`...). Model boss Stelae knight + animation `Great Sword Slash`.
-- **Việc đang dở:** Triển khai Phần 2 (sát thương đòn đánh của Boss `75 HP` và hệ thống máu `PlayerHealth` `300 HP` kèm phản ứng trúng đòn / chết) và Phần 3 (thanh máu UI).
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP từ Boss, miễn sát thương khi có I-frame, phát animation `CharacterImpact` khi trúng đòn và `Death` khi máu về 0), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) đã cập nhật thông số sát thương tùy chỉnh và loại trừ cảnh báo `[VALIDITY]` khi player đang lăn né.
+- **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Falling Back Death`...). Model boss Stelae knight + animation `Great Sword Slash`.
+- **Việc đang dở:** Triển khai Phần 3: Giao diện thanh máu UI (`PlayerHealthBarUI`) dạng thanh đỏ trực quan kết nối với `PlayerHealth`.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận); rìa đầu cung chém vẫn có thể báo `[VALIDITY]` nhẹ nếu đứng sát nách do quỹ đạo kiếm vung thực tế không phải cung tròn tâm chân hoàn hảo (chấp nhận).
 
 ---
@@ -195,3 +195,20 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Thực hiện Phần 2: Thêm thông số sát thương (`75 HP`) vào `BossAttackData` và viết `PlayerHealth.cs` (`300 HP`, miễn sát thương khi đang `IsInvulnerable`, kích hoạt animation `CharacterImpact` khi trúng đòn và `Sword And Shield Death` khi hết máu).
 - **Commit:** [AI] feat: cơ chế lăn né đòn có i-frame và cập nhật đòn chém boss
+
+## [2026-10-30 17:56] Triển khai hệ thống máu nhân vật (300 HP), sát thương Boss (75 HP) và phản ứng trúng đòn/chết
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Viết Phần 2: thêm sát thương 75 HP vào đòn Boss, tạo hệ thống máu nhân vật 300 HP, nhận sát thương khi bị chém trúng và miễn nhiễm khi né I-frame; dùng clip `CharacterImpact` khi bị trúng đòn và clip `Falling Back Death` (tên state/trigger `Death`) khi hết máu; sửa lỗi không chạy animation Hurt/Death; sửa lỗi log né I-frame không hiện và loại bỏ cảnh báo sai ngoài vùng khi đang roll; cập nhật `NguCanh.md` và commit Phần 2.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/Player/PlayerHealth.cs`, sửa `Assets/Scripts/Boss/BossAttackData.cs`, sửa `Assets/Scripts/Boss/BossAttackController.cs`, sửa `Assets/Scripts/Player/PlayerDodge.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:**
+  1. Thêm `[SerializeField] private float damage = 75f` vào `BossAttackData` để sát thương đòn đánh độc lập và tinh chỉnh được trên ScriptableObject phục vụ cân bằng game và thí nghiệm A/B.
+  2. Tạo `PlayerHealth.cs` quản lý `maxHealth = 300f`, `currentHealth`, hỗ trợ cơ chế nhận sát thương `TakeDamage` và tự hồi sinh nhanh `ResetFullHealth` bằng ContextMenu.
+  3. Xử lý va chạm kép: kết nối `BossAttackController.PlayerHitByAttack` đồng thời hỗ trợ gọi fallback trực tiếp `ReceiveBossAttackHit` qua `GetComponentInParent<PlayerHealth>()` để không bao giờ bị đứt liên kết giữa kiếm và người chơi.
+  4. Cơ chế I-frame: khi kiếm chạm vào Player, nếu `playerDodge.IsInvulnerable == true` thì lập tức chặn nhận sát thương, in log né thành công kèm timestamp thực tế `Time.time` để chống bị tính năng Collapse của Console gộp dòng gây hiểu nhầm; nếu không có I-frame thì trừ máu, kích hoạt trigger `Hurt` (`CharacterImpact`) và khựng di chuyển trong `hitStunDuration = 0.4s`; khi máu <= 0 thì kích hoạt trigger `Death` (`Falling Back Death`), khóa vĩnh viễn di chuyển và tắt `PlayerDodge`.
+  5. Sửa điều kiện chuyển thế trong Animator: bỏ điều kiện `Hurt` ở mũi tên quay về `idle` (chỉ dùng Has Exit Time) và tạo transition từ `Any State -> Death`.
+  6. Khắc phục cảnh báo `[VALIDITY]`: bỏ qua cảnh báo trúng ngoài vùng quạt đỏ nếu Player đang trong cú lăn né (`IsRolling || IsInvulnerable`) vì khi roll nhân vật chủ động đổi hướng di chuyển ra sau lưng Boss.
+- **Chưa kiểm chứng / rủi ro:** Chưa gắn giao diện thanh máu trực quan trên màn hình (đang kiểm tra qua Console và Inspector).
+- **Cách kiểm tra đề xuất:** Chạy Play, đứng im cho Boss chém thử xem giật `Hurt` và trừ 75 HP mỗi lần; chém 4 lần máu về 0 nhân vật ngã `Death`; lăn né xuyên qua kiếm xác nhận có dòng `ĐANG I-FRAME (NÉ)` và `NÉ ĐÒN THÀNH CÔNG (I-FRAME)!`.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Thực hiện Phần 3: Tạo Canvas UI thanh máu (`PlayerHealthBarUI`) dạng cây màu đỏ mượt mà kết nối với `PlayerHealth`.
+- **Commit:** [AI] feat: hệ thống máu nhân vật, sát thương boss và phản ứng trúng đòn/chết

@@ -218,6 +218,25 @@ public class PlayerDodge : MonoBehaviour
     }
 
     /// <summary>
+    /// Hủy ngay lập tức cú lăn hiện tại (dùng khi bị trúng đòn ngoài khoảng I-frame hoặc khi chết).
+    /// </summary>
+    public void CancelRoll()
+    {
+        if (!isRolling && rollCoroutine == null) return;
+
+        if (rollCoroutine != null)
+        {
+            StopCoroutine(rollCoroutine);
+            rollCoroutine = null;
+        }
+
+        isRolling = false;
+        isInvulnerable = false;
+        lastRollEndTime = Time.time;
+        OnRollEnded?.Invoke();
+    }
+
+    /// <summary>
     /// Kết thúc trạng thái lăn né, hoàn trả quyền di chuyển bình thường.
     /// </summary>
     private void EndRoll()

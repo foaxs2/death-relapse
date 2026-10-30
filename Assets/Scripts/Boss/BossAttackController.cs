@@ -389,18 +389,36 @@ public class BossAttackController : MonoBehaviour
             out float angleToPlayer
         );
 
+        // Kiểm tra xem Player có đang lăn né (Roll / I-Frame) hay không
+        PlayerDodge playerDodge = hitCollider.GetComponentInParent<PlayerDodge>();
+        bool isPlayerRollingOrInvulnerable = (playerDodge != null && (playerDodge.IsInvulnerable || playerDodge.IsRolling));
+
         Debug.Log($"[BossAttackController] Kiếm chạm '{hitCollider.name}' | " +
+                  $"Trạng thái Player: {(playerDodge != null && playerDodge.IsInvulnerable ? "<color=cyan>ĐANG I-FRAME (NÉ)</color>" : "BÌNH THƯỜNG")} | " +
                   $"Trong vùng cảnh báo: {(insideZone ? "CÓ" : "KHÔNG")} | " +
                   $"Khoảng cách XZ: {distanceXZ:F2}m/{lockedRadius:F2}m | Góc lệch: {angleToPlayer:F1}°/{lockedArcAngle * 0.5f:F1}°");
 
-        if (!insideZone)
+        // Chỉ cảnh báo [VALIDITY] nếu người chơi KHÔNG đang lăn né (vì khi lăn né người chơi có thể chủ động lăn vọt ra sau lưng Boss)
+        if (!insideZone && !isPlayerRollingOrInvulnerable)
         {
             Debug.LogWarning($"[VALIDITY] Trúng NGOÀI vùng cảnh báo! Khoảng cách XZ = {distanceXZ:F2}m (bán kính = {lockedRadius:F2}m), " +
                              $"Góc lệch = {angleToPlayer:F1}° (nửa góc quạt = {lockedArcAngle * 0.5f:F1}°). " +
                              "Cần kiểm tra lại bán kính/góc quạt của BossAttackData cho khớp với đường kiếm quét.");
         }
 
-        PlayerHitByAttack?.Invoke(currentAttack, insideZone);
+        // Bắn sự kiện cho PlayerHealth (và trực tiếp gọi lên PlayerHealth trên collider nếu sự kiện chưa được nối)
+        if (PlayerHitByAttack != null)
+        {
+            PlayerHitByAttack.Invoke(currentAttack, insideZone);
+        }
+        else
+        {
+            PlayerHealth targetHealth = hitCollider.GetComponentInParent<PlayerHealth>();
+            if (targetHealth != null)
+            {
+                targetHealth.ReceiveBossAttackHit(currentAttack, insideZone);
+            }
+        }
     }
 
     /// <summary>

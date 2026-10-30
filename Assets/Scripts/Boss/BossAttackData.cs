@@ -15,6 +15,11 @@ public class BossAttackData : ScriptableObject
     [Tooltip("Tên Trigger trong Animator của Boss để kích hoạt animation đánh")]
     [SerializeField] private string animatorTrigger = "Slash";
 
+    [Header("Combat & Damage")]
+    [Tooltip("Sát thương gây ra khi đòn đánh trúng nhân vật (mặc định: 75 HP)")]
+    [Min(0f)]
+    [SerializeField] private float damage = 75f;
+
     [Header("Telegraph & Geometry (Dùng chung cho hiển thị và hitbox)")]
     [Tooltip("Thời lượng báo đòn trước khi tính sát thương (giây). Thông số chính cần thay đổi trong thí nghiệm A/B.")]
     [SerializeField] private float telegraphDuration = 1.0f;
@@ -36,6 +41,7 @@ public class BossAttackData : ScriptableObject
     // Public getters để truy xuất an toàn dữ liệu, tránh bị code khác vô tình chỉnh sửa lúc runtime
     public string AttackName => attackName;
     public string AnimatorTrigger => animatorTrigger;
+    public float Damage => damage;
     public float TelegraphDuration => telegraphDuration;
     public float Radius => radius;
     public float ArcAngleDegrees => arcAngleDegrees;
