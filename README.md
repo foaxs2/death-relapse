@@ -1,8 +1,17 @@
 # Death Relapse
+Game boss-rush 3D (Unity 6) phục vụ nghiên cứu ảnh hưởng của cách báo đòn lên người chơi.
+## Chạy
+1. Cài Unity <ghi đúng phiên bản trong ProjectSettings/ProjectVersion.txt>.
+2. Mở project, mở scene `Assets/Scenes/SampleScene.unity`, bấm Play.
+## Điều khiển
+WASD: di chuyển · Left Shift: lăn né (có I-frame) · Phím 1: ra lệnh boss chém thử
+## Trạng thái
+Đã có: di chuyển, lăn né, máu 300 HP, boss chém Great Sword Slash, thanh máu.
+Chưa có: tấn công của người chơi, chế độ A/B, telemetry.
 
 > **Khó, nhưng thua là do mình gà.**
 
-Game hành động 2D góc nhìn từ trên xuống (Unity, C#), làm trong đồ án chuyên ngành CMP436 (HUTECH, HK1 2026–2027).
+Game hành động 3D góc nhìn từ trên xuống (Unity, C#), làm trong đồ án chuyên ngành CMP436 (HUTECH, HK1 2026–2027).
 Game là công cụ để kiểm chứng một câu hỏi nghiên cứu về **độ khó công bằng**.
 
 - Sinh viên: Nguyễn Quang Duy · MSSV 2380600359 · Lớp 23DTHC7 · Chuyên ngành Công nghệ phần mềm
