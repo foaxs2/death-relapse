@@ -534,43 +534,43 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.06
+      value: 0.01
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.145
+      value: 0.049
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0.11
+      value: 0.063
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.44018432
+      value: 0.03391953
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.63281417
+      value: 0.7713309
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0.3155095
+      value: -0.19050129
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0.5533875
+      value: 0.6063063
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 12
+      value: 16.459
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 90
+      value: 105.885
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 115
+      value: 195.281
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 57b914a9a27ab1946bc3f6b35da5d601, type: 3}
       propertyPath: m_Name
@@ -908,6 +908,67 @@ CharacterController:
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.9, z: 0}
+--- !u!114 &572920474
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 572920469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 50988aa2811568a409c414994103659b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDodge
+  dodgeAction: {fileID: -7471211009204490832, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  rollSpeed: 10
+  rollDuration: 0.75
+  rollCooldown: 0.15
+  speedCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0.4
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  iFrameStartTime: 0.05
+  iFrameDuration: 0.4
+  rollTriggerName: Roll
+--- !u!114 &572920476
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 572920469}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d5387a1c1752f040b1860890e141a77, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
+  maxHealth: 300
+  currentHealth: 300
+  hitStunDuration: 0.4
+  hurtTriggerName: Hurt
+  deathTriggerName: Death
+  bossAttackController: {fileID: 481622105}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1365,6 +1426,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8bca1d95f78e1244487a6c8ad7b1a3ed, type: 3}
       insertIndex: -1
       addedObject: {fileID: 572920472}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8bca1d95f78e1244487a6c8ad7b1a3ed, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 572920474}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 8bca1d95f78e1244487a6c8ad7b1a3ed, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 572920476}
   m_SourcePrefab: {fileID: 100100000, guid: 8bca1d95f78e1244487a6c8ad7b1a3ed, type: 3}
 --- !u!1 &2027819248
 GameObject:

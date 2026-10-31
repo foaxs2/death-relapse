@@ -12,9 +12,9 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP từ Boss, miễn sát thương khi có I-frame, phát animation `CharacterImpact` khi trúng đòn và `Death` khi máu về 0), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) đã cập nhật thông số sát thương tùy chỉnh và loại trừ cảnh báo `[VALIDITY]` khi player đang lăn né.
-- **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Falling Back Death`...). Model boss Stelae knight + animation `Great Sword Slash`.
-- **Việc đang dở:** Triển khai Phần 3: Giao diện thanh máu UI (`PlayerHealthBarUI`) dạng thanh đỏ trực quan kết nối với `PlayerHealth`.
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP từ Boss, miễn sát thương khi có I-frame, phát animation `CharacterImpact` khi trúng đòn và `Death` khi máu về 0), `PlayerHealthBarUI.cs` (thanh máu UI màu đỏ dạng Filled Image, tụt mượt mà kết nối tự động với `PlayerHealth`), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) hoạt động ổn định với sát thương 75 HP và animation `Great Sword Slash`.
+- **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Falling Back Death`...). Model boss Stelae knight + animation `Great Sword Slash`. UI sprite thanh máu (`Assets/Image/HP Bar.png`).
+- **Việc đang dở:** Cả 3 tính năng cơ bản (Roll Dodge có I-frame, Hệ thống máu nhân vật & sát thương Boss, Thanh máu UI) đã hoàn thành trọn vẹn. Sẵn sàng cho các tính năng tiếp theo (Tấn công của nhân vật, hoặc cơ chế phân nhóm A/B & Telemetry).
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận); rìa đầu cung chém vẫn có thể báo `[VALIDITY]` nhẹ nếu đứng sát nách do quỹ đạo kiếm vung thực tế không phải cung tròn tâm chân hoàn hảo (chấp nhận).
 
 ---
@@ -212,3 +212,18 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Thực hiện Phần 3: Tạo Canvas UI thanh máu (`PlayerHealthBarUI`) dạng cây màu đỏ mượt mà kết nối với `PlayerHealth`.
 - **Commit:** [AI] feat: hệ thống máu nhân vật, sát thương boss và phản ứng trúng đòn/chết
+
+## [2026-10-31 19:14] Triển khai giao diện thanh máu (PlayerHealthBarUI) dạng cây đỏ kết nối PlayerHealth
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Viết Phần 3: Tạo thanh máu UI dạng cây màu đỏ nguyên bản không cần số hiển thị; hỗ trợ tụt máu mượt mà; hướng dẫn thiết lập Canvas UI, RectTransform lấp đầy khung viền và cấu hình Sprite Single cho ảnh UI `HP Bar.png`; cập nhật `NguCanh.md` và commit Phần 3.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/UI/PlayerHealthBarUI.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:**
+  1. Dùng mô hình hướng sự kiện: `PlayerHealthBarUI` đăng ký lắng nghe sự kiện `OnHealthChanged(currentHealth, maxHealth)` của `PlayerHealth`, không tốn chi phí kiểm tra mỗi frame trong `Update` khi máu không đổi.
+  2. Hỗ trợ tự động tìm kiếm `PlayerHealth` trong Scene nếu người dùng chưa gán trong Inspector để tránh lỗi NullReferenceException.
+  3. Điều khiển `Image.fillAmount` dạng `Filled (Horizontal, Left-to-Right)` kết hợp nội suy `Mathf.Lerp` với tốc độ `smoothSpeed` (`10f`) để mang lại trải nghiệm tụt máu êm ái, trực quan.
+  4. Hướng dẫn giải quyết lỗi giao diện: hướng dẫn đổi Sprite Mode từ `Multiple` sang `Single` cho asset ảnh `Assets/Image/HP Bar.png` và cấu hình Image Type `Filled` không bị phụ thuộc vào 9-slice để thanh máu lấp đầy trọn vẹn viền đen.
+- **Chưa kiểm chứng / rủi ro:** Chưa thêm hiệu ứng nháy đỏ màn hình (vignette/damage flash) hoặc âm thanh khi nhận sát thương (để dành cho giai đoạn polish).
+- **Cách kiểm tra đề xuất:** Bấm Play, quan sát thanh máu đỏ ở góc trên bên trái màn hình; nhấn phím 1 cho Boss chém và quan sát thanh máu tụt mượt mà tương ứng 75 HP mỗi lần chém; né I-frame qua kiếm xác nhận thanh máu giữ nguyên.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Lựa chọn tính năng tiếp theo: cơ chế tấn công phản đòn/chém súng của Player hoặc hệ thống thí nghiệm phân nhóm A/B và ghi log Telemetry.
+- **Commit:** [AI] feat: giao diện thanh máu đỏ cho nhân vật (PlayerHealthBarUI)

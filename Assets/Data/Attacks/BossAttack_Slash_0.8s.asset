@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BossAttackData
   attackName: Red Attack
   animatorTrigger: AttackRed
-  telegraphDuration: 0.8
-  radius: 3.3
-  arcAngleDegrees: 180
-  facingOffsetDegrees: -10
+  damage: 75
+  telegraphDuration: 0.8333333
+  radius: 3.4
+  arcAngleDegrees: 120
+  facingOffsetDegrees: -50
   animationSecondsToImpact: 1
