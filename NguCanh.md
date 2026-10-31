@@ -192,7 +192,7 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Quyết định kỹ thuật và lý do:** Tách script `PlayerDodge.cs` riêng nhưng gọi qua hàm `MoveWithExternalVelocity` của `PlayerMovement.cs` để đảm bảo mỗi frame chỉ gọi `CharacterController.Move` duy nhất 1 lần cùng trọng lực bám sàn; dùng `InputActionReference` gắn vào action `Player/Sprint` (Left Shift); dùng `AnimationCurve` điều chỉnh vận tốc lướt đầu nhanh cuối chậm tự nhiên; tách cửa sổ bất tử (`iFrameStartTime`, `iFrameDuration`) thành cờ `IsInvulnerable` độc lập với tổng thời gian lăn (`rollDuration`) để dễ cân bằng độ khó; hướng dẫn dời `OnHitWindowOpen` của clip `Great Sword Slash` sang frame 25 (Speed 0.85, `TelegraphDuration = 0.833333s`, `Radius = 3.4m`, `Arc = 120°`, `FacingOffset = -50°`) để giảm thiểu sai lệch vùng quạt ở đầu cú vung kiếm.
 - **Chưa kiểm chứng / rủi ro:** Ở rìa đầu cung chém nếu đứng sát bên hông phải của Boss vẫn có thể xuất hiện cảnh báo `[VALIDITY]` do quỹ đạo vung kiếm 3D từ vai không phải hình quạt tròn đồng tâm hoàn hảo với gốc chân Boss.
 - **Cách kiểm tra đề xuất:** Chạy Play, bấm Left Shift kiểm tra lăn theo hướng WASD hoặc hướng mặt, kiểm tra Gizmo cầu xanh ngọc I-frame trong Scene View; bấm phím 1 kiểm tra Boss chém `Great Sword Slash` khớp thời gian vùng quạt đỏ.
-- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi đã import và cấu hình Rig Humanoid, Bake Into Pose cho clip `Sprinting Forward Roll` và `Great Sword Slash`. Tạo Trigger `Roll` trong Animator, đặt Speed state `Roll` = 1.3 và chỉnh `PlayerDodge` (`Roll Duration = 0.55s`, `Roll Speed = 10.5m/s`, `I-Frame = 0.38s`) cho cảm giác né thanh thoát. Đổi đòn Boss sang `Great Sword Slash`, đặt Event `OnHitWindowOpen` ở frame 25, `OnHitWindowClose` ở frame 35, chỉnh Speed state = 0.85, Telegraph Duration = 0.833s, Radius = 3.4m, Arc = 120°, Facing Offset = -50°.
 - **Việc tiếp theo:** Thực hiện Phần 2: Thêm thông số sát thương (`75 HP`) vào `BossAttackData` và viết `PlayerHealth.cs` (`300 HP`, miễn sát thương khi đang `IsInvulnerable`, kích hoạt animation `CharacterImpact` khi trúng đòn và `Sword And Shield Death` khi hết máu).
 - **Commit:** [AI] feat: cơ chế lăn né đòn có i-frame và cập nhật đòn chém boss
 
@@ -209,7 +209,7 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
   6. Khắc phục cảnh báo `[VALIDITY]`: bỏ qua cảnh báo trúng ngoài vùng quạt đỏ nếu Player đang trong cú lăn né (`IsRolling || IsInvulnerable`) vì khi roll nhân vật chủ động đổi hướng di chuyển ra sau lưng Boss.
 - **Chưa kiểm chứng / rủi ro:** Chưa gắn giao diện thanh máu trực quan trên màn hình (đang kiểm tra qua Console và Inspector).
 - **Cách kiểm tra đề xuất:** Chạy Play, đứng im cho Boss chém thử xem giật `Hurt` và trừ 75 HP mỗi lần; chém 4 lần máu về 0 nhân vật ngã `Death`; lăn né xuyên qua kiếm xác nhận có dòng `ĐANG I-FRAME (NÉ)` và `NÉ ĐÒN THÀNH CÔNG (I-FRAME)!`.
-- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi đã import clip `CharacterImpact` và `Falling Back Death`. Tạo Trigger `Hurt` và `Death` trong Animator của Player, tự sửa lỗi kẹt điều kiện Hurt ở transition về Idle và thêm transition từ Any State sang Death. Gắn `PlayerHealth` lên Knight, kiểm tra nhận sát thương 75 HP mỗi đòn chém, phát hoạt cảnh giật mình Hurt, hết máu gục ngã Death. Đã kiểm chứng né I-frame thành công chặn 100% sát thương.
 - **Việc tiếp theo:** Thực hiện Phần 3: Tạo Canvas UI thanh máu (`PlayerHealthBarUI`) dạng cây màu đỏ mượt mà kết nối với `PlayerHealth`.
 - **Commit:** [AI] feat: hệ thống máu nhân vật, sát thương boss và phản ứng trúng đòn/chết
 
@@ -224,6 +224,6 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
   4. Hướng dẫn giải quyết lỗi giao diện: hướng dẫn đổi Sprite Mode từ `Multiple` sang `Single` cho asset ảnh `Assets/Image/HP Bar.png` và cấu hình Image Type `Filled` không bị phụ thuộc vào 9-slice để thanh máu lấp đầy trọn vẹn viền đen.
 - **Chưa kiểm chứng / rủi ro:** Chưa thêm hiệu ứng nháy đỏ màn hình (vignette/damage flash) hoặc âm thanh khi nhận sát thương (để dành cho giai đoạn polish).
 - **Cách kiểm tra đề xuất:** Bấm Play, quan sát thanh máu đỏ ở góc trên bên trái màn hình; nhấn phím 1 cho Boss chém và quan sát thanh máu tụt mượt mà tương ứng 75 HP mỗi lần chém; né I-frame qua kiếm xác nhận thanh máu giữ nguyên.
-- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Tôi đã kiểm tra / chỉnh sửa:** Tôi đã tạo Canvas, cấu hình Canvas Scaler (Scale With Screen Size 1920x1080), tạo khung nền `HealthBar_Background` và thanh điền `HealthBar_Fill`. Import ảnh `HP Bar.png`, đổi Sprite Mode sang `Single`, gán vào `Source Image`, đặt Image Type `Filled (Horizontal)`. Gắn `PlayerHealthBarUI`, test Play mode thấy thanh máu đỏ tụt mượt mà mỗi khi Boss chém và giữ nguyên khi né I-frame.
 - **Việc tiếp theo:** Lựa chọn tính năng tiếp theo: cơ chế tấn công phản đòn/chém súng của Player hoặc hệ thống thí nghiệm phân nhóm A/B và ghi log Telemetry.
 - **Commit:** [AI] feat: giao diện thanh máu đỏ cho nhân vật (PlayerHealthBarUI)
