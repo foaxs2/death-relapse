@@ -12,9 +12,9 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP từ Boss, miễn sát thương khi có I-frame, phát animation `CharacterImpact` khi trúng đòn và `Death` khi máu về 0), `PlayerHealthBarUI.cs` (thanh máu UI màu đỏ dạng Filled Image, tụt mượt mà kết nối tự động với `PlayerHealth`), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) hoạt động ổn định với sát thương 75 HP và animation `Great Sword Slash`.
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP từ Boss, miễn sát thương khi có I-frame, phát animation `CharacterImpact` khi trúng đòn và `Death` khi máu về 0), `PlayerHealthBarUI.cs` (thanh máu UI màu đỏ dạng Filled Image, tụt mượt mà kết nối tự động với `PlayerHealth`), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) hoạt động ổn định với sát thương 75 HP và animation `Great Sword Slash`. Đã thiết lập Assembly Definition (`DeathRelapse.Runtime`, `DeathRelapse.Tests.EditMode`) và bộ kiểm thử tự động EditMode (`PlayerHealthEditModeTests.cs`) cho hệ thống máu và I-frame.
 - **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Falling Back Death`...). Model boss Stelae knight + animation `Great Sword Slash`. UI sprite thanh máu (`Assets/Image/HP Bar.png`).
-- **Việc đang dở:** Cả 3 tính năng cơ bản (Roll Dodge có I-frame, Hệ thống máu nhân vật & sát thương Boss, Thanh máu UI) đã hoàn thành trọn vẹn. Sẵn sàng cho các tính năng tiếp theo (Tấn công của nhân vật, hoặc cơ chế phân nhóm A/B & Telemetry).
+- **Việc đang dở:** Chuẩn bị các tính năng tiếp theo: cơ chế tấn công phản đòn/chém súng của Player hoặc hệ thống thí nghiệm phân nhóm A/B và ghi log Telemetry.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận); rìa đầu cung chém vẫn có thể báo `[VALIDITY]` nhẹ nếu đứng sát nách do quỹ đạo kiếm vung thực tế không phải cung tròn tâm chân hoàn hảo (chấp nhận).
 
 ---
@@ -227,3 +227,18 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** Tôi đã tạo Canvas, cấu hình Canvas Scaler (Scale With Screen Size 1920x1080), tạo khung nền `HealthBar_Background` và thanh điền `HealthBar_Fill`. Import ảnh `HP Bar.png`, đổi Sprite Mode sang `Single`, gán vào `Source Image`, đặt Image Type `Filled (Horizontal)`. Gắn `PlayerHealthBarUI`, test Play mode thấy thanh máu đỏ tụt mượt mà mỗi khi Boss chém và giữ nguyên khi né I-frame.
 - **Việc tiếp theo:** Lựa chọn tính năng tiếp theo: cơ chế tấn công phản đòn/chém súng của Player hoặc hệ thống thí nghiệm phân nhóm A/B và ghi log Telemetry.
 - **Commit:** [AI] feat: giao diện thanh máu đỏ cho nhân vật (PlayerHealthBarUI)
+
+## [2026-10-31 20:23] Tạo Assembly Definition và bộ kiểm thử EditMode cho PlayerHealth
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Tạo Unity Test Framework EditMode test cho PlayerHealth (và assembly definition nếu cần để test tham chiếu được Scripts). Test: (1) TakeDamage(75) từ 300 HP còn 225; (2) khi PlayerDodge.IsInvulnerable == true thì không mất máu; (3) máu về 0 thì gọi Death. Dùng new GameObject().AddComponent<>(), không cần Animator thật, không sửa gameplay. Báo rõ file đã tạo và cách chạy trong Test Runner.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/DeathRelapse.Runtime.asmdef`, tạo `Assets/Tests/EditMode/DeathRelapse.Tests.EditMode.asmdef`, tạo `Assets/Tests/EditMode/PlayerHealthEditModeTests.cs`, cập nhật `NguCanh.md`.
+- **Quyết định kỹ thuật và lý do:**
+  1. Tạo `DeathRelapse.Runtime.asmdef` bọc toàn bộ code trong `Assets/Scripts` (tham chiếu `Unity.InputSystem`), giúp tách mã nguồn runtime thành assembly riêng chuẩn Unity để project test có thể tham chiếu trực tiếp.
+  2. Tạo `DeathRelapse.Tests.EditMode.asmdef` (chỉ chạy trên platform Editor) tham chiếu `DeathRelapse.Runtime`, `UnityEngine.TestRunner`, `UnityEditor.TestRunner` và nunit.
+  3. Viết `PlayerHealthEditModeTests.cs` khởi tạo GameObject và component bằng code thuần trong SetUp, dọn dẹp sạch bằng `DestroyImmediate` trong TearDown.
+  4. Dùng Reflection gọi `Awake` của `PlayerHealth` và can thiệp trường `isInvulnerable` trên `PlayerDodge` để mô phỏng chính xác trạng thái runtime trong môi trường EditMode mà không làm thay đổi hay bẩn mã nguồn gameplay.
+- **Chưa kiểm chứng / rủi ro:** EditMode test chỉ kiểm tra logic toán học, trạng thái máu và cờ I-frame trong bộ nhớ; va chạm vật lý OverlapCapsule thật của lưỡi kiếm vẫn cần kiểm chứng qua PlayMode/chơi thực tế.
+- **Cách kiểm tra đề xuất:** Mở Window -> General -> Test Runner, chọn tab EditMode, bấm Run All để chạy cả 3 test case.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Chọn và triển khai cơ chế tiếp theo: Hệ thống tấn công của Player (Slash / Gunplay) hoặc Cơ chế phân nhóm A/B & Telemetry.
+- **Commit:** [AI] test: thêm kiểm thử editmode cho hệ thống máu và né i-frame
