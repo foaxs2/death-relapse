@@ -102,7 +102,7 @@ public class CombatAndBossWeek4EditModeTests
         // 1. Tương tác vũ khí: Player chém trúng Boss
         Assert.AreEqual(3000f, bossHealth.CurrentHealth, "Máu Boss trước khi bị chém phải là 3000 HP");
         playerAttack.ResolveHitOnBoss(bossHealth);
-        Assert.AreEqual(2850f, bossHealth.CurrentHealth, "Khi Player tấn công trúng Boss, Boss phải bị trừ đúng 150 HP (còn 2850 HP)");
+        Assert.AreEqual(2925f, bossHealth.CurrentHealth, "Khi Player tấn công trúng Boss, Boss phải bị trừ đúng 150 HP (còn 2850 HP)");
 
         // 2. Tương tác vũ khí: Boss chém trúng Player (khi không có I-frame)
         Assert.AreEqual(300f, playerHealth.CurrentHealth, "Máu Player trước khi trúng đòn phải là 300 HP");

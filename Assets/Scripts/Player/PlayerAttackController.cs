@@ -13,11 +13,11 @@ public class PlayerAttackController : MonoBehaviour
     [Header("Attack Configuration")]
     [Tooltip("Sát thương mỗi nhát chém cơ bản (mặc định: 150 HP, có thể chỉnh thành 75 HP trong Inspector)")]
     [Min(0f)]
-    [SerializeField] private float attackDamage = 150f;
+    [SerializeField] private float attackDamage = 75f;
 
     [Tooltip("Tổng thời lượng thực hiện 1 nhát chém (giây)")]
     [Min(0.1f)]
-    [SerializeField] private float attackDuration = 0.65f;
+    [SerializeField] private float attackDuration = 0.6f;
 
     [Tooltip("Thời gian hồi giữa 2 nhát chém liên tiếp (giây)")]
     [Min(0f)]

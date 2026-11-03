@@ -93,9 +93,11 @@ public class BossHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float damageAmount)
     {
-        // Bảo vệ an toàn trước đầu vào âm, bằng 0 hoặc NaN/Infinity để không bị lỗi cộng ngược máu
-        if (isDead || damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount))
+        if (isDead) return;
+
+        if (damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount))
         {
+            Debug.LogWarning("[BossHealth] Sát thương đầu vào không hợp lệ: " + damageAmount);
             return;
         }
 

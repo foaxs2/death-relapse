@@ -12,11 +12,11 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Hoàn thiện và tinh chỉnh tính năng Tuần 1–4 theo quy trình TDD:
-  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
-  - **Boss:** `BossHealth.cs` (3000 HP), `BossAttackData.cs` (hỗ trợ `attackStateName`), `BossAttackController.cs` (AI tự xoay mặt nhắm Player, đi bộ `GreatAxeWalk` khi ngoài tầm, chọn đòn ngẫu nhiên từ `attackPool`, công tắc `showTelegraphVisuals = false` cho Thí nghiệm 1, phân biệt log `ĐÃ NÉ (I-FRAME)` / `TRÚNG` / `HỤT`), `SwordHitbox.cs` (dùng chung cho kiếm Boss và kiếm Player).
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thiện và kiểm thử đạt 6/6 test EditMode Xanh:
+  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, phòng vệ đầu vào âm/NaN, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` (sát thương 75 HP, thời lượng 0.6s) + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
+  - **Boss:** `BossHealth.cs` (3000 HP, phòng vệ đầu vào âm/NaN), `BossAttackData.cs` (hỗ trợ `attackStateName`), `BossAttackController.cs` (AI tự xoay mặt nhắm Player, tầm đánh 2.5m, đi bộ `GreatAxeWalk` khi ngoài tầm, chọn đòn ngẫu nhiên từ `attackPool`, công tắc `showTelegraphVisuals = false` cho Thí nghiệm 1, phân biệt log `ĐÃ NÉ (I-FRAME)` / `TRÚNG` / `HỤT`), `SwordHitbox.cs` (dùng chung cho kiếm Boss và kiếm Player).
   - **UI & Vòng lặp & Telemetry:** `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`, `TelemetryLogger.cs` (ghi `telemetry_log.jsonl`: `SessionStart`, `PlayerDefeated`, `BossDefeated`), `BattleLoopManager.cs` (màn hình Thắng/Thua với nút Replay và tự reset khi rơi khỏi bản đồ `y < -5f`, đã bỏ phím `R`).
-  - **Tests:** 6 bài EditMode tests (`PlayerHealthEditModeTests.cs` + `CombatAndBossWeek4EditModeTests.cs`).
+  - **Tests:** 6 bài EditMode tests đạt PASS 100% (`PlayerHealthEditModeTests.cs` + `CombatAndBossWeek4EditModeTests.cs`).
 - **Asset đã có:** `com.unity.cloud.gltfast` (6.20.0), model Knight + kiếm `Moonbrand` (`BladeBase`/`BladeTip`), model Boss + kiếm, các clip Mixamo (`Slash.fbx`, `GreatAxeWalk.fbx`, `GreatAxeStrongRedAttack.fbx`, TextMesh Pro...).
 - **Việc đang dở:** Mở rộng bộ đòn đánh (`attackPool`) của Boss và hoàn thiện phân nhóm A/B cho bản build Pilot.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
@@ -297,3 +297,16 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Bổ sung thêm các ScriptableObject đòn đánh của Boss vào `attackPool` và hoàn thiện cơ chế phân nhóm A/B tự động.
 - **Commit:** [AI] feat: hoàn thiện chiến đấu tuần 4, ai boss, telemetry và vòng lặp
+
+## [2026-11-03 19:50] Hoàn thiện kiểm tra biên đầu vào sát thương, cân chỉnh 75 HP và đồng bộ 6/6 EditMode tests
+- **Công cụ/model:** Gemini Flash
+- **Yêu cầu của tôi (tóm tắt):** Giải thích ý nghĩa và hướng dẫn tự sửa kiểm tra điều kiện biên đầu vào (Input Validation) trong `BossHealth.cs` / `PlayerHealth.cs`; giải thích nguyên nhân Test Runner báo 1 test failed (Test 2) và sửa cho Pass; cập nhật `NguCanh.md`, commit và push lên Git.
+- **AI đã làm (file tạo/sửa):** Cập nhật `NguCanh.md`. (Người dùng đã tự chỉnh sửa `PlayerHealth.cs`, `BossHealth.cs`, `PlayerAttackController.cs`, `CombatAndBossWeek4EditModeTests.cs`, `BossAttackController.cs` và lưu Scene).
+- **Quyết định kỹ thuật và lý do:**
+  1. **Lập trình phòng vệ (Defensive Programming / Input Validation):** Tách điều kiện `damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount)` và thêm `Debug.LogWarning` trong cả `PlayerHealth.cs` và `BossHealth.cs` để ngăn ngừa triệt để lỗi logic trừ số âm làm tăng máu ngược hoặc giá trị NaN làm hỏng giao diện, giúp phát hiện ngay lỗi tính toán từ các script tấn công khác.
+  2. **Cân bằng sát thương Player chém Boss:** Người dùng tinh chỉnh `attackDamage` của Player từ 150 HP xuống 75 HP (thời lượng 0.6s) và `attackRange` của Boss xuống 2.5m; đồng bộ lại giá trị mong đợi trong `CombatAndBossWeek4EditModeTests.cs` (Boss nhận 75 HP thì máu còn `2925 HP`) giúp toàn bộ 6 bài test EditMode đều đạt kết quả Pass xanh 100%.
+- **Chưa kiểm chứng / rủi ro:** Đã test EditMode 6/6 Pass. Cần kiểm tra trải nghiệm nhịp độ trận đấu thực tế khi Player gây 75 HP (cần 40 nhát chém để hạ Boss 3000 HP).
+- **Cách kiểm tra đề xuất:** Mở Test Runner bấm Run All xác nhận 6 bài test Pass xanh hoàn toàn; vào Play Mode chém thử Boss kiểm tra thanh máu tụt đều đặn.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Mở rộng bộ đòn đánh cho Boss (`attackPool`) và thiết lập cơ chế phân nhóm A/B ngẫu nhiên kèm log telemetry.
+- **Commit:** [AI] fix: phòng vệ đầu vào sát thương, cân chỉnh 75hp và pass 6/6 editmode tests

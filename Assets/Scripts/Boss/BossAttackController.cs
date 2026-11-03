@@ -34,7 +34,7 @@ public class BossAttackController : MonoBehaviour
 
     [Tooltip("Khoảng cách (m) mà Boss dừng đi bộ và bắt đầu tung đòn đánh")]
     [Min(0.5f)]
-    [SerializeField] private float attackRange = 2.8f;
+    [SerializeField] private float attackRange = 2.5f;
 
     [Tooltip("Thời gian nghỉ giữa 2 đòn đánh liên tiếp của Boss (giây)")]
     [Min(0f)]

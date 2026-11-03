@@ -195,12 +195,12 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float damageAmount)
     {
-        if (isDead || damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount)) return;
+        if (isDead) return;
 
-        // Nếu đang ở cuối cú lăn (hết I-frame nhưng chưa kết thúc rollDuration) mà bị đánh trúng -> hủy cú lăn ngay
-        if (playerDodge != null && playerDodge.IsRolling)
+        if (damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount))
         {
-            playerDodge.CancelRoll();
+            Debug.LogWarning("[PlayerHealth] Sát thương đầu vào không hợp lệ: " + damageAmount);
+            return;
         }
 
         currentHealth = Mathf.Max(0f, currentHealth - damageAmount);
