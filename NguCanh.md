@@ -12,9 +12,9 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né đòn bằng phím Left Shift + cửa sổ bất tử I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP từ Boss, miễn sát thương khi có I-frame, phát animation `CharacterImpact` khi trúng đòn và `Death` khi máu về 0), `PlayerHealthBarUI.cs` (thanh máu UI màu đỏ dạng Filled Image, tụt mượt mà kết nối tự động với `PlayerHealth`), `CameraFollow.cs`, `CREDITS.md`. Hệ thống đòn đánh của Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) hoạt động ổn định với sát thương 75 HP và animation `Great Sword Slash`. Đã thiết lập Assembly Definition (`DeathRelapse.Runtime`, `DeathRelapse.Tests.EditMode`) và bộ kiểm thử tự động EditMode (`PlayerHealthEditModeTests.cs`) cho hệ thống máu và I-frame.
-- **Asset đã có:** model hiệp sĩ + animation Mixamo (`Sprinting Forward Roll`, `CharacterImpact`, `Falling Back Death`...). Model boss Stelae knight + animation `Great Sword Slash`. UI sprite thanh máu (`Assets/Image/HP Bar.png`).
-- **Việc đang dở:** Chuẩn bị các tính năng tiếp theo: cơ chế tấn công phản đòn/chém súng của Player hoặc hệ thống thí nghiệm phân nhóm A/B và ghi log Telemetry.
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thành `PlayerMovement.cs`, `PlayerDodge.cs` (lăn né I-frame), `PlayerHealth.cs` (máu 300 HP, nhận sát thương 75 HP, animation `CharacterImpact`/`Death`), `PlayerHealthBarUI.cs` (thanh máu đỏ mượt mà), `CameraFollow.cs`. Đòn đánh Boss (`BossAttackData.cs`, `BossAttackController.cs`, `SwordHitbox.cs`, `BossAnimationEventRelay.cs`) hoạt động ổn định với sát thương 75 HP và animation `Great Sword Slash`. Bộ kiểm thử EditMode (`PlayerHealthEditModeTests.cs`) cho máu và I-frame đạt 100%.
+- **Asset đã có:** Cài đặt package `com.unity.cloud.gltfast` (6.20.0). Model hiệp sĩ + animation Mixamo; model kiếm hiệp sĩ `Moonbrand` (GLB) đã gán vào xương tay phải `mixamorig:RightHand` kèm 2 điểm mốc `BladeBase`, `BladeTip`. Model boss Stelae knight + animation `Great Sword Slash`. UI sprite thanh máu (`Assets/Image/HP Bar.png`). Ghi nhận bản quyền đầy đủ tại `CREDITS.md`.
+- **Việc đang dở:** Triển khai cơ chế tấn công của Player (sử dụng clip `Slash.fbx`, `SwordHitbox` cho kiếm Moonbrand đánh vào Boss) hoặc hệ thống phân nhóm A/B và ghi log Telemetry.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận); rìa đầu cung chém vẫn có thể báo `[VALIDITY]` nhẹ nếu đứng sát nách do quỹ đạo kiếm vung thực tế không phải cung tròn tâm chân hoàn hảo (chấp nhận).
 
 ---
@@ -242,3 +242,18 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Chọn và triển khai cơ chế tiếp theo: Hệ thống tấn công của Player (Slash / Gunplay) hoặc Cơ chế phân nhóm A/B & Telemetry.
 - **Commit:** [AI] test: thêm kiểm thử editmode cho hệ thống máu và né i-frame
+
+## [2026-11-03 16:48] Tích hợp model kiếm Moonbrand cho Player và cài đặt package glTFast
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Xuất báo cáo kỹ thuật hiện trạng project để lập kế hoạch Tuần 4; hướng dẫn nhập model kiếm GLB cho hiệp sĩ, gán vào tay phải `mixamorig:RightHand`, tạo 2 empty con `BladeBase`/`BladeTip` và cấu hình Layer 7 Boss; kiểm tra cài đặt glTFast và nội dung bản quyền kiếm trong `CREDITS.md`; giải đáp về quản lý Layer khi mở rộng quái và vị trí đặt CapsuleCollider cho Boss; commit các nội dung đã hoàn thành.
+- **AI đã làm (file tạo/sửa):** Cập nhật `NguCanh.md`. (Người dùng đã thêm model `moonbrand_early_14th_c_arming_sword.glb`, cài package `com.unity.cloud.gltfast` qua Package Manager, gán kiếm và tạo 2 điểm mốc trên `mixamorig:RightHand` trong `SampleScene.unity`, và bổ sung bản quyền kiếm vào `CREDITS.md`).
+- **Quyết định kỹ thuật và lý do:**
+  1. Sử dụng package chính thức `com.unity.cloud.gltfast` (6.20.0) của Unity để import trực tiếp định dạng GLTF/GLB làm prefab 3D bản địa mà không cần convert thủ công qua FBX.
+  2. Gán kiếm vào đúng xương `mixamorig:RightHand` của model Humanoid để vũ khí tự động bám theo mọi hoạt cảnh vung tay/chạy/né của nhân vật.
+  3. Tạo 2 transform mốc `BladeBase` (gốc lưỡi) và `BladeTip` (mũi kiếm) trên thân kiếm để chuẩn bị tái sử dụng script quét capsule `SwordHitbox.cs` cho đòn đánh của Player mà không cần hardcode tọa độ.
+  4. Hướng dẫn phân loại Layer theo nhóm hành vi (`Player`, `Boss`/`Enemy`) thay vì tạo mỗi quái 1 layer để tránh vượt quá giới hạn 32 layer của Unity; khuyên gắn CapsuleCollider trực tiếp trên `Boss_Body` để tập trung logic cùng `Animator`, `BossAttackController` và `BossHealth`.
+- **Chưa kiểm chứng / rủi ro:** File `ProjectSettings/TagManager.asset` cần thao tác `File -> Save Project` trong Editor để lưu vĩnh viễn tên Layer 7 (`Boss`) xuống ổ đĩa; chưa gán script `SwordHitbox` và logic trừ máu `BossHealth` cho đòn chém của hiệp sĩ.
+- **Cách kiểm tra đề xuất:** Mở Scene View kiểm tra kiếm Moonbrand bám theo tay phải Knight; kiểm tra 2 điểm `BladeBase` và `BladeTip` nằm đúng gốc và chóp lưỡi kiếm; kiểm tra `CREDITS.md` có đầy đủ thông tin bản quyền CC BY 3.0.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Nhấn `File -> Save Project` trong Unity để lưu cấu hình TagManager; triển khai script tấn công cho Player (`PlayerAttackController.cs`) kích hoạt animation `Slash.fbx` và gây sát thương lên Boss.
+- **Commit:** [AI] feat: tích hợp model kiếm moonbrand cho hiệp sĩ và cài đặt gltfast

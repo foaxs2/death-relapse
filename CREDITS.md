@@ -37,3 +37,9 @@ Tài liệu này ghi nhận toàn bộ các tài nguyên bên ngoài (3D model, 
   - Các animation bổ sung trong tương lai cho Boss và thao tác lướt né (Dash/Roll).
 - **Loại giấy phép:** Adobe Software Licensing Agreement (Royalty-free – được phép sử dụng miễn phí cho các ứng dụng và game 2D/3D phi thương mại lẫn thương mại).
 - **Các chỉnh sửa đã thực hiện:** Thiết lập chuẩn Humanoid Avatar trong Unity, cấu hình Animator Controller và điều khiển chuyển động qua code CharacterController (không dùng Root Motion).
+
+## 3. SWORDS
+
+**Moonbrand (Early 14th C Arming Sword)** by [The Oakeshott Institute](https://sketchfab.com/oakeshott)
+  - Source: [Sketchfab](https://sketchfab.com/3d-models/moonbrand-early-14th-c-arming-sword-80fa91fc8c974fd0acd2a55cc513edec)
+  - License: [Creative Commons Attribution 3.0 Unported (CC BY 3.0)](http://creativecommons.org/licenses/by/3.0/)
