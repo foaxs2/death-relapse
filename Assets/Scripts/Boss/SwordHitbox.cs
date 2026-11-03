@@ -19,7 +19,7 @@ public class SwordHitbox : MonoBehaviour
     [SerializeField] private float bladeRadius = 0.25f;
 
     [Header("Detection Settings")]
-    [Tooltip("Layer của Player để lọc va chạm")]
+    [Tooltip("Layer của mục tiêu để lọc va chạm (Player cho kiếm Boss, Boss cho kiếm Player)")]
     [SerializeField] private LayerMask playerMask;
 
     [Tooltip("Số bước nội suy giữa frame trước và frame hiện tại để chống xuyên (tunneling)")]
@@ -92,6 +92,7 @@ public class SwordHitbox : MonoBehaviour
         }
 
         int steps = Mathf.Max(1, substeps);
+        int effectiveMask = playerMask.value != 0 ? playerMask.value : Physics.DefaultRaycastLayers;
 
         // Nội suy từng bước nhỏ giữa tư thế frame trước và frame này để không bỏ sót khi kiếm quét nhanh
         for (int i = 1; i <= steps; i++)
@@ -105,17 +106,37 @@ public class SwordHitbox : MonoBehaviour
                 stepTip,
                 bladeRadius,
                 hitBuffer,
-                playerMask,
+                effectiveMask,
                 QueryTriggerInteraction.Ignore
             );
 
-            if (hitCount > 0)
+            for (int j = 0; j < hitCount; j++)
             {
-                Collider firstCollider = hitBuffer[0];
+                Collider candidate = hitBuffer[j];
+                if (candidate == null) continue;
+
+                // Bỏ qua collider thuộc về chính bản thân chủ sở hữu thanh kiếm
+                if (candidate.transform.root == transform.root) continue;
+
+                // Nếu người dùng quên cấu hình LayerMask (để Nothing), chỉ nhận collider có máu Player hoặc Boss (bỏ qua sàn đấu)
+                if (playerMask.value == 0)
+                {
+                    if (candidate.GetComponentInParent<PlayerHealth>() == null &&
+                        candidate.GetComponentInParent<BossHealth>() == null)
+                    {
+                        continue;
+                    }
+                }
+
                 hasTriggeredHit = true; // Ngừng kiểm tra trong phần còn lại của cửa sổ này
 
                 Action<Collider> callback = onHitCallback;
-                callback?.Invoke(firstCollider);
+                callback?.Invoke(candidate);
+                break;
+            }
+
+            if (hasTriggeredHit)
+            {
                 break;
             }
         }

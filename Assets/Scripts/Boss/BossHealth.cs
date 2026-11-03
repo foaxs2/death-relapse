@@ -2,9 +2,8 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Quản lý thanh máu (HP) và trạng thái tử trận của Boss.
-/// Class khung (stub) phục vụ quy trình TDD Bước 1:
-/// Chỉ định nghĩa cấu trúc dữ liệu, properties, events và chữ ký hàm, chưa cài đặt logic xử lý bên trong.
+/// Quản lý thanh máu (HP), nhận sát thương và trạng thái tử trận của Boss.
+/// Mọi thông số đều được cấu hình qua Inspector để dễ dàng cân bằng độ khó.
 /// </summary>
 public class BossHealth : MonoBehaviour
 {
@@ -13,10 +12,18 @@ public class BossHealth : MonoBehaviour
     [Min(1f)]
     [SerializeField] private float maxHealth = 3000f;
 
-    [Tooltip("Máu hiện tại của Boss (chỉ đọc lúc runtime)")]
+    [Tooltip("Máu hiện tại của Boss (chỉ xem trong lúc chạy)")]
     [SerializeField] private float currentHealth;
 
-    // Trạng thái sống/chết của Boss
+    [Header("Animation & References")]
+    [Tooltip("Tên Trigger trong Animator của Boss để phát animation chết (nếu có)")]
+    [SerializeField] private string deathTriggerName = "Death";
+
+    [Tooltip("Tham chiếu BossAttackController để vô hiệu hóa hành vi tấn công khi Boss chết")]
+    [SerializeField] private BossAttackController bossAttackController;
+
+    private Animator animator;
+    private int deathTriggerHash;
     private bool isDead = false;
 
     /// <summary>
@@ -30,7 +37,7 @@ public class BossHealth : MonoBehaviour
     public float MaxHealth => maxHealth;
 
     /// <summary>
-    /// Tỉ lệ máu từ 0.0 đến 1.0 (phục vụ thanh máu UI của Boss).
+    /// Tỉ lệ máu hiện tại từ 0.0 đến 1.0 (dùng cho thanh máu UI của Boss).
     /// </summary>
     public float HealthNormalized => maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
 
@@ -45,7 +52,7 @@ public class BossHealth : MonoBehaviour
     public event Action<float, float> OnHealthChanged;
 
     /// <summary>
-    /// Sự kiện phát ra khi Boss nhận sát thương thực tế. Tham số: (sát thương, máu còn lại).
+    /// Sự kiện phát ra khi Boss nhận sát thương thực tế. Tham số: (sát thương nhận vào, máu còn lại).
     /// </summary>
     public event Action<float, float> OnDamaged;
 
@@ -56,16 +63,85 @@ public class BossHealth : MonoBehaviour
 
     private void Awake()
     {
-        // Tạm để trống thân hàm theo TDD Red (chưa gán currentHealth = maxHealth)
+        animator = GetComponentInChildren<Animator>();
+
+        if (bossAttackController == null)
+        {
+            bossAttackController = GetComponent<BossAttackController>();
+            if (bossAttackController == null)
+            {
+                bossAttackController = GetComponentInChildren<BossAttackController>();
+            }
+        }
+
+        if (!string.IsNullOrEmpty(deathTriggerName))
+        {
+            deathTriggerHash = Animator.StringToHash(deathTriggerName);
+        }
+
+        isDead = false;
+        currentHealth = maxHealth;
+    }
+
+    private void Start()
+    {
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }
 
     /// <summary>
     /// Trừ máu của Boss và kích hoạt các sự kiện OnDamaged, OnHealthChanged, OnDied.
-    /// Tạm để trống thân hàm để bài test báo đỏ (Red) chuẩn TDD.
     /// </summary>
     public void TakeDamage(float damageAmount)
     {
-        // TODO: Sẽ triển khai logic trừ máu và kích hoạt sự kiện ở Bước 2 TDD
+        // Bảo vệ an toàn trước đầu vào âm, bằng 0 hoặc NaN/Infinity để không bị lỗi cộng ngược máu
+        if (isDead || damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount))
+        {
+            return;
+        }
+
+        currentHealth = Mathf.Max(0f, currentHealth - damageAmount);
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        OnDamaged?.Invoke(damageAmount, currentHealth);
+
+        Debug.Log($"[BossHealth] <color=yellow>BOSS TRÚNG ĐÒN!</color> -{damageAmount:F0} HP | Máu Boss còn: {currentHealth:F0}/{maxHealth:F0}");
+
+        if (currentHealth <= 0f)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+
+        if (bossAttackController != null)
+        {
+            bossAttackController.enabled = false;
+        }
+
+        if (animator != null && deathTriggerHash != 0 && HasParameter(animator, deathTriggerHash))
+        {
+            animator.ResetTrigger(deathTriggerHash);
+            animator.SetTrigger(deathTriggerHash);
+        }
+
+        Debug.Log("[BossHealth] <color=green>BOSS ĐÃ BỊ HẠ GỤC (0 HP)!</color>");
+        OnDied?.Invoke();
+    }
+
+    /// <summary>
+    /// Kiểm tra xem Animator có chứa parameter tương ứng không để tránh cảnh báo vàng trong Console.
+    /// </summary>
+    private static bool HasParameter(Animator targetAnimator, int paramHash)
+    {
+        if (targetAnimator == null || targetAnimator.runtimeAnimatorController == null) return false;
+        foreach (AnimatorControllerParameter param in targetAnimator.parameters)
+        {
+            if (param.nameHash == paramHash) return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -74,7 +150,15 @@ public class BossHealth : MonoBehaviour
     [ContextMenu("Reset Full Health")]
     public void ResetFullHealth()
     {
-        // TODO: Sẽ triển khai logic reset máu ở Bước 2 TDD
+        isDead = false;
+        currentHealth = maxHealth;
+
+        if (bossAttackController != null)
+        {
+            bossAttackController.enabled = true;
+        }
+
+        OnHealthChanged?.Invoke(currentHealth, maxHealth);
+        Debug.Log($"[BossHealth] Đã hồi đầy máu Boss: {currentHealth:F0}/{maxHealth:F0}");
     }
 }
-

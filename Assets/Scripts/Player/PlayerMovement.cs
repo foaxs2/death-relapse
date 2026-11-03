@@ -12,8 +12,11 @@ public class PlayerMovement : MonoBehaviour
     [Tooltip("Tốc độ di chuyển trên mặt đất (đơn vị: m/s)")]
     [SerializeField] private float moveSpeed = 6f;
 
-    [Tooltip("Tốc độ xoay người về hướng di chuyển (độ/giây)")]
+    [Tooltip("Tốc độ xoay người về hướng di chuyển hoặc hướng chuột (độ/giây)")]
     [SerializeField] private float rotationSpeed = 720f;
+
+    [Tooltip("Khi tắt (mặc định kiểu Hades), nhân vật xoay theo hướng chạy WASD và chỉ xoay về hướng chuột khi ra đòn. Khi bật, nhân vật luôn xoay theo chuột.")]
+    [SerializeField] private bool rotateTowardsMouse = false;
 
     [Header("Gravity & Grounding")]
     [Tooltip("Gia tốc trọng trường kéo nhân vật xuống khi ở trên không")]
@@ -29,6 +32,7 @@ public class PlayerMovement : MonoBehaviour
     // Component tham chiếu đã được cache sẵn trong Awake để tránh gọi GetComponent trong Update
     private CharacterController characterController;
     private Animator animator;
+    private Camera mainCamera;
 
     // Vận tốc theo trục Y (thẳng đứng) do trọng lực tích lũy
     private float verticalVelocity;
@@ -47,11 +51,28 @@ public class PlayerMovement : MonoBehaviour
 
     /// <summary>
     /// Hướng di chuyển mong muốn hiện tại từ input của người chơi (trên mặt phẳng XZ).
+    /// Đọc trực tiếp từ moveAction nếu đang bật để PlayerDodge lấy được hướng phím tức thì không bị trễ frame.
     /// </summary>
-    public Vector3 CurrentInputDirection => currentInputDirection;
+    public Vector3 CurrentInputDirection
+    {
+        get
+        {
+            if (moveAction != null && moveAction.action != null && moveAction.action.enabled)
+            {
+                Vector2 liveInput = moveAction.action.ReadValue<Vector2>();
+                Vector3 liveDir = new Vector3(liveInput.x, 0f, liveInput.y);
+                if (liveDir.sqrMagnitude > 1f)
+                {
+                    liveDir.Normalize();
+                }
+                return liveDir;
+            }
+            return currentInputDirection;
+        }
+    }
 
     /// <summary>
-    /// Cho phép các script khác (ví dụ: PlayerDodge) tạm thời khóa hoặc mở khóa di chuyển.
+    /// Cho phép các script khác (ví dụ: PlayerDodge, PlayerAttackController) tạm thời khóa hoặc mở khóa di chuyển.
     /// </summary>
     public void SetMovementLocked(bool locked)
     {
@@ -65,6 +86,9 @@ public class PlayerMovement : MonoBehaviour
 
         // Cache Animator từ chính GameObject hoặc từ prefab model con (như model Knight Mixamo)
         animator = GetComponentInChildren<Animator>();
+
+        // Cache Camera chính để phục vụ tính hướng con trỏ chuột trên mặt phẳng sàn
+        mainCamera = Camera.main;
     }
 
     private void OnEnable()
@@ -119,8 +143,15 @@ public class PlayerMovement : MonoBehaviour
             return;
         }
 
-        // Xoay nhân vật theo hướng di chuyển (chỉ xoay khi có input)
-        UpdateRotation(currentInputDirection);
+        // Xoay nhân vật: ưu tiên hướng con trỏ chuột nếu bật rotateTowardsMouse, ngược lại xoay theo hướng WASD
+        if (rotateTowardsMouse && TryGetMouseWorldDirection(out Vector3 mouseDirection))
+        {
+            UpdateRotation(mouseDirection);
+        }
+        else
+        {
+            UpdateRotation(currentInputDirection);
+        }
 
         // Vận tốc ngang mong muốn
         Vector3 horizontalVelocity = currentInputDirection * moveSpeed;
@@ -134,6 +165,53 @@ public class PlayerMovement : MonoBehaviour
 
         // Cập nhật giá trị Speed cho Animator
         UpdateAnimator(horizontalVelocity.magnitude);
+    }
+
+    /// <summary>
+    /// Xoay tức thì nhân vật hướng thẳng về phía con trỏ chuột trên mặt phẳng sàn đấu.
+    /// Được gọi ngay khi bấm chuột trái tấn công để đòn chém luôn hướng đúng vào vị trí chuột.
+    /// </summary>
+    public void RotateTowardsMouseImmediate()
+    {
+        if (TryGetMouseWorldDirection(out Vector3 mouseDirection))
+        {
+            transform.rotation = Quaternion.LookRotation(mouseDirection, Vector3.up);
+        }
+    }
+
+    /// <summary>
+    /// Tính toán vector hướng từ nhân vật tới vị trí con trỏ chuột trên mặt phẳng ngang của sàn đấu.
+    /// </summary>
+    public bool TryGetMouseWorldDirection(out Vector3 direction)
+    {
+        direction = Vector3.zero;
+
+        if (Mouse.current == null) return false;
+
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null) return false;
+        }
+
+        Vector2 mouseScreenPos = Mouse.current.position.ReadValue();
+        Ray ray = mainCamera.ScreenPointToRay(mouseScreenPos);
+        Plane groundPlane = new Plane(Vector3.up, transform.position);
+
+        if (groundPlane.Raycast(ray, out float enterDistance))
+        {
+            Vector3 hitPoint = ray.GetPoint(enterDistance);
+            Vector3 lookDirection = hitPoint - transform.position;
+            lookDirection.y = 0f;
+
+            if (lookDirection.sqrMagnitude > 0.0001f)
+            {
+                direction = lookDirection.normalized;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

@@ -14,6 +14,35 @@ public class BossAttackController : MonoBehaviour
     [Tooltip("Dữ liệu cấu hình đòn đánh hiện tại (ScriptableObject)")]
     [SerializeField] private BossAttackData currentAttack;
 
+    [Tooltip("Danh sách các đòn đánh để Boss tự chọn ngẫu nhiên mỗi lần ra đòn (nếu để trống sẽ dùng currentAttack)")]
+    [SerializeField] private BossAttackData[] attackPool;
+
+    [Tooltip("Bật/tắt hiển thị vùng quạt đỏ trên sàn (Mặc định tắt cho Thí nghiệm 1 không vùng đỏ)")]
+    [SerializeField] private bool showTelegraphVisuals = false;
+
+    [Header("Boss AI & Movement (Tuần 4)")]
+    [Tooltip("Bật hành vi AI tự động xoay mặt, đi bộ đuổi theo Player và ra đòn")]
+    [SerializeField] private bool enableAutoAI = true;
+
+    [Tooltip("Tốc độ đi bộ của Boss khi tiến về phía Player (m/s)")]
+    [Min(0f)]
+    [SerializeField] private float moveSpeed = 2.8f;
+
+    [Tooltip("Tốc độ xoay người của Boss hướng về phía Player (độ/giây)")]
+    [Min(0f)]
+    [SerializeField] private float rotationSpeed = 360f;
+
+    [Tooltip("Khoảng cách (m) mà Boss dừng đi bộ và bắt đầu tung đòn đánh")]
+    [Min(0.5f)]
+    [SerializeField] private float attackRange = 2.8f;
+
+    [Tooltip("Thời gian nghỉ giữa 2 đòn đánh liên tiếp của Boss (giây)")]
+    [Min(0f)]
+    [SerializeField] private float attackCooldown = 1.5f;
+
+    [Tooltip("Tên parameter Float trong Animator của Boss để điều khiển chuyển trạng thái đi bộ (GreatAxeWalk)")]
+    [SerializeField] private string walkSpeedParam = "Speed";
+
     [Header("References")]
     [Tooltip("Animator của Boss để kích hoạt animation chém")]
     [SerializeField] private Animator animator;
@@ -31,7 +60,7 @@ public class BossAttackController : MonoBehaviour
     [SerializeField] private MeshFilter telegraphOutlineMesh;
 
     [Header("Animation & Timing State")]
-    [Tooltip("Tên State đòn đánh trong Animator Controller (dùng để chờ kết thúc đòn)")]
+    [Tooltip("Tên State đòn đánh mặc định trong Animator Controller (dùng nếu BossAttackData không khai báo riêng)")]
     [SerializeField] private string attackStateName = "Red Attack";
 
     [Tooltip("Thời gian chờ tối đa (giây) sau khi Fill đầy nếu chưa nhận được OnHitWindowOpen")]
@@ -52,13 +81,21 @@ public class BossAttackController : MonoBehaviour
     /// </summary>
     public event Action<BossAttackData, bool> AttackResolved;
 
-    // Trạng thái đòn đánh
+    // Trạng thái đòn đánh & AI
     private bool isAttacking = false;
     private bool hitWindowOpened = false;
     private bool hitWindowClosed = false;
+    private bool hasProcessedPlayerContactThisWindow = false;
     private bool hasHitPlayerThisWindow = false;
+    private bool hasDodgedThisWindow = false;
     private float attackTriggerRealtime = 0f;
+    private float lastAttackEndTime = -999f;
     private Coroutine attackCoroutine;
+
+    // Tham chiếu máu để kiểm tra trạng thái sống/chết của Boss và Player
+    private BossHealth bossHealth;
+    private PlayerHealth playerHealth;
+    private int walkSpeedHash;
 
     // Dữ liệu hình học được chốt MỘT LẦN khi bắt đầu đòn (Snap-shot)
     private Vector3 lockedCenter;
@@ -77,6 +114,11 @@ public class BossAttackController : MonoBehaviour
     private const float TelegraphSyncToleranceSeconds = 0.05f;
 
     public bool IsAttacking => isAttacking;
+    public bool ShowTelegraphVisuals
+    {
+        get => showTelegraphVisuals;
+        set => showTelegraphVisuals = value;
+    }
 
     private void Awake()
     {
@@ -90,17 +132,107 @@ public class BossAttackController : MonoBehaviour
             swordHitbox = GetComponentInChildren<SwordHitbox>();
         }
 
+        bossHealth = GetComponent<BossHealth>();
+        if (bossHealth == null)
+        {
+            bossHealth = GetComponentInParent<BossHealth>();
+        }
+
+        if (player == null)
+        {
+            PlayerMovement foundPlayer = FindFirstObjectByType<PlayerMovement>();
+            if (foundPlayer != null)
+            {
+                player = foundPlayer.transform;
+            }
+        }
+
+        if (player != null)
+        {
+            playerHealth = player.GetComponentInParent<PlayerHealth>();
+        }
+
+        if (!string.IsNullOrEmpty(walkSpeedParam))
+        {
+            walkSpeedHash = Animator.StringToHash(walkSpeedParam);
+        }
+
         HideTelegraphVisuals();
     }
 
     private void Update()
     {
+        if (bossHealth != null && bossHealth.IsDead)
+        {
+            UpdateWalkAnimator(0f);
+            return;
+        }
+
         // Phím thử nghiệm: Số 1 trên bàn phím (Input System mới)
         if (Keyboard.current != null && Keyboard.current.digit1Key.wasPressedThisFrame)
         {
             if (!isAttacking)
             {
                 TriggerAttack();
+            }
+        }
+
+        if (enableAutoAI)
+        {
+            UpdateAutoAI();
+        }
+    }
+
+    /// <summary>
+    /// Vòng lặp AI tự động: xoay hướng mặt về phía Player, đi bộ đuổi theo nếu ngoài tầm, và tung đòn khi vào tầm.
+    /// </summary>
+    private void UpdateAutoAI()
+    {
+        if (isAttacking || player == null || (playerHealth != null && playerHealth.IsDead))
+        {
+            UpdateWalkAnimator(0f);
+            return;
+        }
+
+        Vector3 toPlayerXZ = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up);
+        float distanceToPlayer = toPlayerXZ.magnitude;
+
+        // 1. Luôn xoay mặt mượt mà hướng về phía Player trên mặt phẳng XZ
+        if (toPlayerXZ.sqrMagnitude > 0.0001f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(toPlayerXZ.normalized, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+        }
+
+        // 2. Nếu ngoài tầm đánh: tiến về phía Player và phát animation đi bộ (GreatAxeWalk)
+        if (distanceToPlayer > attackRange)
+        {
+            Vector3 moveDirection = toPlayerXZ.normalized;
+            transform.position += moveDirection * (moveSpeed * Time.deltaTime);
+            UpdateWalkAnimator(moveSpeed);
+        }
+        else
+        {
+            // 3. Khi đã vào tầm đánh: dừng đi bộ và kiểm tra thời gian hồi chiêu để ra đòn
+            UpdateWalkAnimator(0f);
+
+            if (Time.time >= lastAttackEndTime + attackCooldown)
+            {
+                TriggerAttack();
+            }
+        }
+    }
+
+    private void UpdateWalkAnimator(float currentSpeed)
+    {
+        if (animator == null || walkSpeedHash == 0 || animator.runtimeAnimatorController == null) return;
+
+        foreach (AnimatorControllerParameter param in animator.parameters)
+        {
+            if (param.nameHash == walkSpeedHash && param.type == AnimatorControllerParameterType.Float)
+            {
+                animator.SetFloat(walkSpeedHash, currentSpeed);
+                break;
             }
         }
     }
@@ -118,11 +250,14 @@ public class BossAttackController : MonoBehaviour
             swordHitbox.CloseWindow();
         }
 
+        UpdateWalkAnimator(0f);
         HideTelegraphVisuals();
         isAttacking = false;
         hitWindowOpened = false;
         hitWindowClosed = false;
+        hasProcessedPlayerContactThisWindow = false;
         hasHitPlayerThisWindow = false;
+        hasDodgedThisWindow = false;
     }
 
     private void OnDestroy()
@@ -134,25 +269,78 @@ public class BossAttackController : MonoBehaviour
     }
 
     /// <summary>
-    /// Kích hoạt chu kỳ đòn đánh báo trước dựa theo currentAttack.
+    /// Chọn ngẫu nhiên 1 đòn đánh hợp lệ từ attackPool (nếu có), ngược lại giữ nguyên currentAttack.
+    /// </summary>
+    private void SelectAttackFromPool()
+    {
+        if (attackPool == null || attackPool.Length == 0) return;
+
+        int validCount = 0;
+        for (int i = 0; i < attackPool.Length; i++)
+        {
+            if (attackPool[i] != null) validCount++;
+        }
+
+        if (validCount == 0) return;
+
+        int randomPick = UnityEngine.Random.Range(0, validCount);
+        int currentIndex = 0;
+        for (int i = 0; i < attackPool.Length; i++)
+        {
+            if (attackPool[i] == null) continue;
+            if (currentIndex == randomPick)
+            {
+                currentAttack = attackPool[i];
+                return;
+            }
+            currentIndex++;
+        }
+    }
+
+    private string GetActiveAttackStateName()
+    {
+        if (currentAttack != null && !string.IsNullOrEmpty(currentAttack.AttackStateName))
+        {
+            return currentAttack.AttackStateName;
+        }
+        return attackStateName;
+    }
+
+    /// <summary>
+    /// Kích hoạt chu kỳ đòn đánh báo trước dựa theo attackPool hoặc currentAttack.
     /// </summary>
     public void TriggerAttack()
     {
         if (isAttacking) return;
+        if (bossHealth != null && bossHealth.IsDead) return;
+
+        SelectAttackFromPool();
 
         if (currentAttack == null)
         {
-            Debug.LogWarning("[BossAttackController] Chưa gán 'currentAttack' (BossAttackData) trong Inspector!");
+            Debug.LogWarning("[BossAttackController] Chưa gán 'currentAttack' hoặc 'attackPool' (BossAttackData) trong Inspector!");
             return;
         }
 
-        // Đảm bảo Animator đã hoàn toàn về Idle trước khi bắt đầu đòn mới (chống kẹt trigger)
-        if (animator != null && !string.IsNullOrEmpty(attackStateName))
+        string activeStateName = GetActiveAttackStateName();
+
+        // Đảm bảo Animator đã hoàn toàn về Idle/Walk trước khi bắt đầu đòn mới (chống kẹt trigger)
+        if (animator != null && !string.IsNullOrEmpty(activeStateName))
         {
             AnimatorStateInfo currentInfo = animator.GetCurrentAnimatorStateInfo(0);
-            if (currentInfo.IsName(attackStateName) || animator.IsInTransition(0))
+            if (currentInfo.IsName(activeStateName) || animator.IsInTransition(0))
             {
                 return;
+            }
+        }
+
+        // Xoay hướng mặt Boss nhắm thẳng về phía Player ngay thời điểm bắt đầu gồng đòn
+        if (player != null)
+        {
+            Vector3 toPlayerXZ = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up);
+            if (toPlayerXZ.sqrMagnitude > 0.0001f)
+            {
+                transform.rotation = Quaternion.LookRotation(toPlayerXZ.normalized, Vector3.up);
             }
         }
 
@@ -169,7 +357,9 @@ public class BossAttackController : MonoBehaviour
         isAttacking = true;
         hitWindowOpened = false;
         hitWindowClosed = false;
+        hasProcessedPlayerContactThisWindow = false;
         hasHitPlayerThisWindow = false;
+        hasDodgedThisWindow = false;
 
         if (swordHitbox != null)
         {
@@ -191,41 +381,49 @@ public class BossAttackController : MonoBehaviour
         lockedArcAngle = currentAttack.ArcAngleDegrees;
         lockedDuration = Mathf.Max(0.01f, currentAttack.TelegraphDuration);
 
-        // 2. Kích hoạt Animator trigger và ghi mốc thời gian thực
+        // 2. Kích hoạt Animator trigger trước (để ưu tiên chuyển thẳng Walk -> Red Attack thay vì bị kẹt qua Walk -> Idle 0.25s)
         if (animator != null && !string.IsNullOrEmpty(currentAttack.AnimatorTrigger))
         {
             animator.ResetTrigger(currentAttack.AnimatorTrigger);
             animator.SetTrigger(currentAttack.AnimatorTrigger);
         }
         attackTriggerRealtime = Time.realtimeSinceStartup;
+        UpdateWalkAnimator(0f);
 
-        // 3. Chuẩn bị Mesh hình quạt đơn vị và hiện vùng quạt cảnh báo
-        EnsureSectorMesh(lockedArcAngle);
-
-        Quaternion attackRotation = Quaternion.LookRotation(lockedForward, Vector3.up);
-
-        if (telegraphOutlineMesh != null)
+        // 3. Chuẩn bị Mesh hình quạt đơn vị và hiện vùng quạt cảnh báo (chỉ hiện khi showTelegraphVisuals == true)
+        if (showTelegraphVisuals)
         {
-            telegraphOutlineMesh.transform.position = lockedCenter;
-            telegraphOutlineMesh.transform.rotation = attackRotation;
-            telegraphOutlineMesh.transform.localScale = new Vector3(lockedRadius, 1f, lockedRadius);
-            telegraphOutlineMesh.gameObject.SetActive(true);
+            EnsureSectorMesh(lockedArcAngle);
+
+            Quaternion attackRotation = Quaternion.LookRotation(lockedForward, Vector3.up);
+
+            if (telegraphOutlineMesh != null)
+            {
+                telegraphOutlineMesh.transform.position = lockedCenter;
+                telegraphOutlineMesh.transform.rotation = attackRotation;
+                telegraphOutlineMesh.transform.localScale = new Vector3(lockedRadius, 1f, lockedRadius);
+                telegraphOutlineMesh.gameObject.SetActive(true);
+            }
+
+            if (telegraphFillMesh != null)
+            {
+                telegraphFillMesh.transform.position = lockedCenter + Vector3.up * FillHeightBias;
+                telegraphFillMesh.transform.rotation = attackRotation;
+                telegraphFillMesh.transform.localScale = new Vector3(0f, 1f, 0f);
+                telegraphFillMesh.gameObject.SetActive(true);
+            }
         }
-
-        if (telegraphFillMesh != null)
+        else
         {
-            telegraphFillMesh.transform.position = lockedCenter + Vector3.up * FillHeightBias;
-            telegraphFillMesh.transform.rotation = attackRotation;
-            telegraphFillMesh.transform.localScale = new Vector3(0f, 1f, 0f);
-            telegraphFillMesh.gameObject.SetActive(true);
+            HideTelegraphVisuals();
         }
 
         Debug.Log($"[BossAttackController] BẮT ĐẦU đòn '{currentAttack.AttackName}' | " +
-                  $"Telegraph: {lockedDuration:F2}s | Bán kính: {lockedRadius:F2}m | " +
-                  $"Góc quét: {lockedArcAngle:F1}° | Offset: {currentAttack.FacingOffsetDegrees:F1}°");
+                  $"Telegraph: {lockedDuration:F2}s (Hiển thị vùng đỏ: {(showTelegraphVisuals ? "BẬT" : "TẮT")}) | " +
+                  $"Bán kính: {lockedRadius:F2}m | Góc quét: {lockedArcAngle:F1}° | Offset: {currentAttack.FacingOffsetDegrees:F1}°");
 
         // 4. Tiến trình điền đầy (Fill) theo telegraphDuration bằng Time.deltaTime
-        // Nếu nhận OnHitWindowOpen sớm hơn dự kiến thì NotifyHitWindowOpen sẽ tự ẩn vùng cảnh báo ngay
+        // Vẫn chờ đúng telegraphDuration ngay cả khi ẩn vùng đỏ để animation gồng đòn không đổi
         float elapsedTime = 0f;
         while (elapsedTime < lockedDuration && !hitWindowOpened)
         {
@@ -233,7 +431,7 @@ public class BossAttackController : MonoBehaviour
             float progress = Mathf.Clamp01(elapsedTime / lockedDuration);
             float currentFillRadius = lockedRadius * progress;
 
-            if (telegraphFillMesh != null)
+            if (showTelegraphVisuals && telegraphFillMesh != null)
             {
                 telegraphFillMesh.transform.localScale = new Vector3(currentFillRadius, 1f, currentFillRadius);
             }
@@ -244,7 +442,7 @@ public class BossAttackController : MonoBehaviour
         // Khi Fill đã đầy mà chưa nhận OnHitWindowOpen: giữ vùng đầy và chờ tiếp tối đa hitWindowTimeoutSeconds
         if (!hitWindowOpened)
         {
-            if (telegraphFillMesh != null)
+            if (showTelegraphVisuals && telegraphFillMesh != null)
             {
                 telegraphFillMesh.transform.localScale = new Vector3(lockedRadius, 1f, lockedRadius);
             }
@@ -269,12 +467,13 @@ public class BossAttackController : MonoBehaviour
 
                 HideTelegraphVisuals();
                 isAttacking = false;
+                lastAttackEndTime = Time.time;
                 attackCoroutine = null;
                 yield break;
             }
         }
 
-        // 5. Chờ đóng cửa sổ trúng (OnHitWindowClose) và chờ Animator rời state attackStateName
+        // 5. Chờ đóng cửa sổ trúng (OnHitWindowClose) và chờ Animator rời state đòn đánh
         float postOpenTimer = 0f;
         float maxPostOpenWait = Mathf.Max(0.5f, endOfAttackTimeoutSeconds);
 
@@ -294,12 +493,13 @@ public class BossAttackController : MonoBehaviour
         // Đợi ít nhất 1 frame để Animator cập nhật state ổn định rồi đợi tới khi hoàn toàn rời khỏi state đòn đánh
         yield return null;
 
-        if (animator != null && !string.IsNullOrEmpty(attackStateName))
+        string activeStateName = GetActiveAttackStateName();
+        if (animator != null && !string.IsNullOrEmpty(activeStateName))
         {
             while (postOpenTimer < maxPostOpenWait)
             {
                 AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-                bool inAttackState = stateInfo.IsName(attackStateName);
+                bool inAttackState = stateInfo.IsName(activeStateName);
                 bool inTransition = animator.IsInTransition(0);
 
                 if (!inAttackState && !inTransition)
@@ -313,6 +513,7 @@ public class BossAttackController : MonoBehaviour
         }
 
         isAttacking = false;
+        lastAttackEndTime = Time.time;
         attackCoroutine = null;
     }
 
@@ -324,7 +525,9 @@ public class BossAttackController : MonoBehaviour
         if (!isAttacking || hitWindowOpened) return;
 
         hitWindowOpened = true;
+        hasProcessedPlayerContactThisWindow = false;
         hasHitPlayerThisWindow = false;
+        hasDodgedThisWindow = false;
 
         // Đo thời gian thực từ lúc SetTrigger đến khi mở cửa sổ trúng
         float actualWindupSeconds = Time.realtimeSinceStartup - attackTriggerRealtime;
@@ -368,8 +571,12 @@ public class BossAttackController : MonoBehaviour
 
         AttackResolved?.Invoke(currentAttack, hasHitPlayerThisWindow);
 
+        string outcomeText = hasDodgedThisWindow
+            ? "<color=cyan>ĐÃ NÉ (I-FRAME)</color>"
+            : (hasHitPlayerThisWindow ? "<color=red>TRÚNG</color>" : "<color=green>HỤT</color>");
+
         Debug.Log($"[BossAttackController] OnHitWindowClose -> KẾT THÚC pha chém '{currentAttack.AttackName}' | " +
-                  $"Kết quả: {(hasHitPlayerThisWindow ? "<color=red>TRÚNG</color>" : "<color=green>HỤT</color>")}");
+                  $"Kết quả: {outcomeText}");
     }
 
     /// <summary>
@@ -377,8 +584,8 @@ public class BossAttackController : MonoBehaviour
     /// </summary>
     private void HandlePlayerHit(Collider hitCollider)
     {
-        if (hasHitPlayerThisWindow) return;
-        hasHitPlayerThisWindow = true;
+        if (hasProcessedPlayerContactThisWindow) return;
+        hasProcessedPlayerContactThisWindow = true;
 
         bool insideZone = IsInsideLockedZone(
             lockedCenter,
@@ -391,10 +598,21 @@ public class BossAttackController : MonoBehaviour
 
         // Kiểm tra xem Player có đang lăn né (Roll / I-Frame) hay không
         PlayerDodge playerDodge = hitCollider.GetComponentInParent<PlayerDodge>();
+        bool isInvulnerable = (playerDodge != null && playerDodge.IsInvulnerable);
         bool isPlayerRollingOrInvulnerable = (playerDodge != null && (playerDodge.IsInvulnerable || playerDodge.IsRolling));
 
+        if (isInvulnerable)
+        {
+            hasDodgedThisWindow = true;
+            hasHitPlayerThisWindow = false;
+        }
+        else
+        {
+            hasHitPlayerThisWindow = true;
+        }
+
         Debug.Log($"[BossAttackController] Kiếm chạm '{hitCollider.name}' | " +
-                  $"Trạng thái Player: {(playerDodge != null && playerDodge.IsInvulnerable ? "<color=cyan>ĐANG I-FRAME (NÉ)</color>" : "BÌNH THƯỜNG")} | " +
+                  $"Trạng thái Player: {(isInvulnerable ? "<color=cyan>ĐANG I-FRAME (NÉ)</color>" : "BÌNH THƯỜNG")} | " +
                   $"Trong vùng cảnh báo: {(insideZone ? "CÓ" : "KHÔNG")} | " +
                   $"Khoảng cách XZ: {distanceXZ:F2}m/{lockedRadius:F2}m | Góc lệch: {angleToPlayer:F1}°/{lockedArcAngle * 0.5f:F1}°");
 

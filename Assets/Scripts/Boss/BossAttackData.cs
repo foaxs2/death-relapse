@@ -15,6 +15,9 @@ public class BossAttackData : ScriptableObject
     [Tooltip("Tên Trigger trong Animator của Boss để kích hoạt animation đánh")]
     [SerializeField] private string animatorTrigger = "Slash";
 
+    [Tooltip("Tên State tương ứng trong Animator Controller của Boss (ví dụ: Red Attack, Strong Red Attack)")]
+    [SerializeField] private string attackStateName = "Red Attack";
+
     [Header("Combat & Damage")]
     [Tooltip("Sát thương gây ra khi đòn đánh trúng nhân vật (mặc định: 75 HP)")]
     [Min(0f)]
@@ -41,6 +44,7 @@ public class BossAttackData : ScriptableObject
     // Public getters để truy xuất an toàn dữ liệu, tránh bị code khác vô tình chỉnh sửa lúc runtime
     public string AttackName => attackName;
     public string AnimatorTrigger => animatorTrigger;
+    public string AttackStateName => attackStateName;
     public float Damage => damage;
     public float TelegraphDuration => telegraphDuration;
     public float Radius => radius;

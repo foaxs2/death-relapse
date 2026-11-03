@@ -108,11 +108,26 @@ public class PlayerHealth : MonoBehaviour
             deathTriggerHash = Animator.StringToHash(deathTriggerName);
         }
 
+        // Xóa các Trigger nếu vô tình bị bật sẵn trong cửa sổ Animator Editor
+        if (animator != null)
+        {
+            if (hurtTriggerHash != 0) animator.ResetTrigger(hurtTriggerHash);
+            if (deathTriggerHash != 0) animator.ResetTrigger(deathTriggerHash);
+        }
+
         currentHealth = maxHealth;
     }
 
     private void Start()
     {
+        // Đảm bảo nhân vật bắt đầu trận ở trạng thái đứng (idle) nếu Trigger Death vô tình bị tích sẵn trong Editor
+        if (!isDead && animator != null)
+        {
+            if (deathTriggerHash != 0) animator.ResetTrigger(deathTriggerHash);
+            if (hurtTriggerHash != 0) animator.ResetTrigger(hurtTriggerHash);
+            animator.Play("idle", 0, 0f);
+        }
+
         // Cập nhật trạng thái máu ban đầu cho UI (nếu có đăng ký)
         OnHealthChanged?.Invoke(currentHealth, maxHealth);
     }
@@ -180,7 +195,7 @@ public class PlayerHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float damageAmount)
     {
-        if (isDead || damageAmount <= 0f) return;
+        if (isDead || damageAmount <= 0f || float.IsNaN(damageAmount) || float.IsInfinity(damageAmount)) return;
 
         // Nếu đang ở cuối cú lăn (hết I-frame nhưng chưa kết thúc rollDuration) mà bị đánh trúng -> hủy cú lăn ngay
         if (playerDodge != null && playerDodge.IsRolling)
