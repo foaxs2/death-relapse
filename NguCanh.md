@@ -13,12 +13,12 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
 - **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thiện và kiểm thử đạt 6/6 test EditMode Xanh:
-  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, phòng vệ đầu vào âm/NaN, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` (sát thương 75 HP, thời lượng 0.6s) + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
+  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, phòng vệ đầu vào âm/NaN, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` (sát thương 75 HP; combo 2 nhát Slash2 → Slash theo mảng `steps`, mỗi nhát có tốc độ/nghỉ/kiếm khí riêng; CHƯA test trong Editor) + `SwordSlashTrail.cs` (vệt kiếm khí trắng bám theo quỹ đạo lưỡi kiếm, hitbox kéo dài; chỉnh được tầm xa/độ dày/thời gian mờ; cửa sổ combo 0.8s tính từ lúc click) + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
   - **Boss:** `BossHealth.cs` (3000 HP, phòng vệ đầu vào âm/NaN), `BossAttackData.cs` (hỗ trợ `attackStateName`), `BossAttackController.cs` (AI tự xoay mặt nhắm Player, tầm đánh 2.5m, đi bộ `GreatAxeWalk` khi ngoài tầm, chọn đòn ngẫu nhiên từ `attackPool`, công tắc `showTelegraphVisuals = false` cho Thí nghiệm 1, phân biệt log `ĐÃ NÉ (I-FRAME)` / `TRÚNG` / `HỤT`), `SwordHitbox.cs` (dùng chung cho kiếm Boss và kiếm Player).
   - **UI & Vòng lặp & Telemetry:** `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`, `TelemetryLogger.cs` (ghi `telemetry_log.jsonl`: `SessionStart`, `PlayerDefeated`, `BossDefeated`), `BattleLoopManager.cs` (màn hình Thắng/Thua với nút Replay và tự reset khi rơi khỏi bản đồ `y < -5f`, đã bỏ phím `R`).
   - **Tests:** 6 bài EditMode tests đạt PASS 100% (`PlayerHealthEditModeTests.cs` + `CombatAndBossWeek4EditModeTests.cs`).
 - **Asset đã có:** `com.unity.cloud.gltfast` (6.20.0), model Knight + kiếm `Moonbrand` (`BladeBase`/`BladeTip`), model Boss + kiếm, các clip Mixamo (`Slash.fbx`, `GreatAxeWalk.fbx`, `GreatAxeStrongRedAttack.fbx`, TextMesh Pro...).
-- **Việc đang dở:** Mở rộng bộ đòn đánh (`attackPool`) của Boss và hoàn thiện phân nhóm A/B cho bản build Pilot.
+- **Việc đang dở:** Sửa animation Slash đầu tiên đang có vấn đề; mở rộng bộ đòn đánh (`attackPool`) của Boss và hoàn thiện phân nhóm A/B cho bản build Pilot.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
 
 ---
@@ -310,3 +310,47 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Mở rộng bộ đòn đánh cho Boss (`attackPool`) và thiết lập cơ chế phân nhóm A/B ngẫu nhiên kèm log telemetry.
 - **Commit:** [AI] fix: phòng vệ đầu vào sát thương, cân chỉnh 75hp và pass 6/6 editmode tests
+
+## [2026-11-06 13:20] Combo Slash2 → Slash và kiếm khí trắng
+- **Công cụ/model:** Gemini (Antigravity), Claude Sonnet 5.5
+- **Yêu cầu của tôi (tóm tắt):** Nhát đầu dùng Slash2, nhát hai dùng Slash, có nghỉ giữa hai nhát; thêm kiếm khí trắng chỉnh được độ rộng/tầm xa/tốc độ, bay ngang hoặc chéo theo nhát; hitbox gồm cả kiếm và kiếm khí.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/Combat/SlashWaveProjectile.cs`; viết lại `Assets/Scripts/Player/PlayerAttackController.cs` (mảng `SlashStep`, combo luân phiên, animator speed theo nhát, pool kiếm khí, trail kiếm).
+- **Quyết định kỹ thuật và lý do:** Mỗi nhát có `animationSpeed`, `attackDuration`, `restAfter`, thông số kiếm khí riêng; mọi mốc thời gian chia cho tốc độ để hitbox khớp animation. Kiếm khí quét BoxCast mỗi frame (không cần Rigidbody/Collider), visual co giãn theo width để khớp hitbox. Góc chéo = xoay dải quanh trục Y. Kiếm và kiếm khí có sát thương riêng, mỗi cái trúng tối đa 1 lần.
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch, chưa chạy Editor. Đã bỏ các field cũ `attackDuration`, `attackCooldown`, `fallbackHitWindowStart/End`, `attackTriggerName` (giá trị cũ trong scene mất). Một nhát có thể gây cả sát thương kiếm lẫn kiếm khí.
+- **Cách kiểm tra đề xuất:** Làm Animator (Attack2), prefab kiếm khí, gán tham chiếu; chém 3 lần xem Slash2 → Slash → Slash2; kiểm tra Gizmo hitbox.
+- **Tôi đã kiểm tra / chỉnh sửa:** Đã làm theo hướng dẫn cài đặt trong Unity (theo lời người dùng).
+- **Việc tiếp theo:** Chỉnh số liệu trong Inspector cho cảm giác chém; gắn Animation Event cho Slash2 nếu hitbox lệch.
+- **Commit:** [AI] feat: combo Slash2-Slash và vệt kiếm khí bám theo lưỡi kiếm
+
+## [2026-11-06 13:50] Đổi kiếm khí thành vệt chém vòng cung dưới đất, cửa sổ combo 0.8s
+- **Công cụ/model:** Gemini (Antigravity), Claude Sonnet 5.5
+- **Yêu cầu của tôi (tóm tắt):** Combo chỉ sang Slash nếu bấm lần 2 trong 0.8s, không thì quay lại Slash2; kiếm khí thành vệt cung trắng trên mặt đất (kiểu Hades), hiện theo hướng chém rồi biến mất.
+- **AI đã làm (file tạo/sửa):** Viết lại `SlashWaveProjectile.cs` (mesh lưỡi liềm dựng bằng code, hiện dần/mờ dần bằng vertex color, hitbox hình quạt cùng tham số với mesh); sửa `PlayerAttackController.cs` (`SlashStep.wave` kiểu `SlashWaveProjectile.Settings`, bỏ `waveSpawnPoint`, `comboResetTime` tính từ lúc nhát chém kết thúc, mặc định 0.8).
+- **Quyết định kỹ thuật và lý do:** Vùng trúng là hình quạt đặc (không chỉ viền cung) để công bằng hơn; dùng `bounds.ClosestPoint` vì CharacterController không hỗ trợ `ClosestPoint`. Chém ngang/dọc chỉ khác tham số width/range/arcAngle, nhát đối xứng dùng `reverseSweep`.
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch, chưa chạy Editor. Cần bỏ object con `Visual` khỏi prefab SlashWave và gán Material. Giá trị `steps` cũ trong scene có thể cần nhập lại.
+- **Cách kiểm tra đề xuất:** Chém 1 lần rồi chờ >0.8s (phải ra Slash2 lại); click 2 lần nhanh (Slash2 → Slash); xem vệt cung và Gizmo cyan khi chọn prefab.
+- **Tôi đã kiểm tra / chỉnh sửa:** Đã làm theo hướng dẫn; thấy vệt chém dưới đất chưa đúng ý nên yêu cầu làm lại (theo lời người dùng).
+- **Việc tiếp theo:** Chỉnh số liệu cho khớp hướng 2 clip; làm kiểu chém dọc nếu có clip.
+- **Commit:** [AI] feat: combo Slash2-Slash và vệt kiếm khí bám theo lưỡi kiếm
+
+## [2026-11-06 14:40] Vệt kiếm khí bám theo quỹ đạo lưỡi kiếm, cửa sổ combo tính từ lúc click
+- **Công cụ/model:** Gemini (Antigravity), Claude Sonnet 5.5
+- **Yêu cầu của tôi (tóm tắt):** Cửa sổ 0.8s tính từ lúc click; vệt chém phải xuất phát từ lưỡi kiếm và đi theo đúng quỹ đạo kiếm (kể cả khi kiếm xéo), không phải vệt đặt dưới sàn.
+- **AI đã làm (file tạo/sửa):** Tạo `Assets/Scripts/Combat/SwordSlashTrail.cs` (ghi vị trí chuôi/mũi kiếm mỗi frame, dựng mesh dải, mờ dần/thu hẹp, hitbox hình trụ quét dọc đoạn kiếm kéo dài); sửa `PlayerAttackController.cs` (bỏ pool kiếm khí, gọi `BeginRecording/EndRecording` theo cửa sổ hitbox, `lastAttackStartTime` cho combo).
+- **Quyết định kỹ thuật và lý do:** Vệt lấy mẫu trong LateUpdate (sau Animator) nên khớp animation Mixamo thật; hitbox kéo dài cùng đoạn với phần hiển thị. `SlashWaveProjectile.cs` không còn dùng nhưng chưa xóa (cần người dùng đồng ý).
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch/chạy Editor. Cửa sổ combo 0.8s tính từ click nên phải lớn hơn `attackDuration + restAfter` của nhát trước, nếu không combo không bao giờ sang nhát 2.
+- **Cách kiểm tra đề xuất:** Gán BladeBase/BladeTip/Material cho SwordSlashTrail, chém xem vệt có đi theo kiếm không; kiểm tra Gizmo cyan.
+- **Tôi đã kiểm tra / chỉnh sửa:** Đã chỉnh lại thông số và làm theo hướng dẫn; thấy animation Slash đầu tiên có vấn đề (theo lời người dùng).
+- **Việc tiếp theo:** Chỉnh extraReach, innerFraction, lifetime cho đẹp; xóa script/prefab cũ nếu đồng ý.
+- **Commit:** [AI] feat: combo Slash2-Slash và vệt kiếm khí bám theo lưỡi kiếm
+
+## [2026-11-06 14:55] Dọn script thừa, cập nhật CREDITS, commit và push
+- **Công cụ/model:** Gemini (Antigravity), Claude Sonnet 5.5
+- **Yêu cầu của tôi (tóm tắt):** Cập nhật NguCanh (điền mục người dùng đã làm, không viết thêm), xóa script không cần thiết, commit và push; hỏi đổi animation Slash khác thì có phải sửa code không.
+- **AI đã làm (file tạo/sửa):** Xóa Assets/Scripts/Combat/SlashWaveProjectile.cs và .meta (không còn được tham chiếu); thêm Slash2.fbx vào CREDITS.md; điền ô "Tôi đã kiểm tra / chỉnh sửa" của 3 mục trước đúng theo lời người dùng nói; cập nhật khối Tóm tắt; commit và push.
+- **Quyết định kỹ thuật và lý do:** Không commit Assets/Prehab/ (prefab SlashWave còn tham chiếu script đã xóa) và thay đổi tự sinh của TextMesh Pro. Không xóa prefab vì người dùng chỉ yêu cầu xóa script.
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch/chạy Editor. File SampleScene.unity không có thay đổi trong git, có thể người dùng chưa lưu scene nên các gán tham chiếu (SwordSlashTrail, Slash Trail, steps) chưa được commit.
+- **Cách kiểm tra đề xuất:** Mở Unity, xác nhận không có lỗi compile, lưu scene (Ctrl+S) rồi kiểm tra git status.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Sửa animation Slash đầu tiên (đổi clip trong Animator, chỉnh ttackDuration/hit window trong steps).
+- **Commit:** [AI] feat: combo Slash2-Slash và vệt kiếm khí bám theo lưỡi kiếm

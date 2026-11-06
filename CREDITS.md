@@ -33,7 +33,7 @@ Tài liệu này ghi nhận toàn bộ các tài nguyên bên ngoài (3D model, 
 - **Tác giả / Nhà cung cấp:** Adobe Systems Inc. (Adobe Mixamo)
 - **Nguồn (Source URL):** [Mixamo](https://www.mixamo.com/)
 - **Các clip đang sử dụng:** 
-  - Hiệp sĩ: `idle.fbx`, `Run with sword.fbx`, `Slash.fbx`, `Gunplay.fbx,`
+  - Hiệp sĩ: `idle.fbx`, `Run with sword.fbx`, `Slash.fbx`, `Slash2.fbx`, `Gunplay.fbx,`
   - Các animation bổ sung trong tương lai cho Boss và thao tác lướt né (Dash/Roll).
 - **Loại giấy phép:** Adobe Software Licensing Agreement (Royalty-free – được phép sử dụng miễn phí cho các ứng dụng và game 2D/3D phi thương mại lẫn thương mại).
 - **Các chỉnh sửa đã thực hiện:** Thiết lập chuẩn Humanoid Avatar trong Unity, cấu hình Animator Controller và điều khiển chuyển động qua code CharacterController (không dùng Root Motion).
