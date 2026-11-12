@@ -59,6 +59,9 @@ public class BossAttackController : MonoBehaviour
     [Tooltip("MeshFilter của GameObject hiển thị viền/khung quạt tối đa (Outline)")]
     [SerializeField] private MeshFilter telegraphOutlineMesh;
 
+    [Tooltip("MeshFilter của vệt nứt mặt đất (đòn xung kích). Gán 1 GameObject có MeshRenderer + material vết nứt, để tắt sẵn. Có thể để trống.")]
+    [SerializeField] private MeshFilter groundCrackMesh;
+
     [Header("Animation & Timing State")]
     [Tooltip("Tên State đòn đánh mặc định trong Animator Controller (dùng nếu BossAttackData không khai báo riêng)")]
     [SerializeField] private string attackStateName = "Red Attack";
@@ -68,6 +71,9 @@ public class BossAttackController : MonoBehaviour
 
     [Tooltip("Thời gian chờ tối đa (giây) để Animator đóng cửa sổ và quay về Idle")]
     [SerializeField] private float endOfAttackTimeoutSeconds = 8f;
+
+    [Tooltip("Thời lượng luồng sóng xung kích gây sát thương tính từ lúc đập đất (giây). Sau thời gian này luồng sóng tan, đi bộ vào sẽ không dính đòn.")]
+    [SerializeField] private float shockwaveActiveDuration = 0.35f;
 
     /// <summary>
     /// Sự kiện C# phát ra ngay khi lưỡi kiếm chạm trúng Player trong cửa sổ trúng.
@@ -96,6 +102,8 @@ public class BossAttackController : MonoBehaviour
     private BossHealth bossHealth;
     private PlayerHealth playerHealth;
     private int walkSpeedHash;
+    private PlayerDodge playerDodge;
+    private Collider playerCollider;
 
     // Dữ liệu hình học được chốt MỘT LẦN khi bắt đầu đòn (Snap-shot)
     private Vector3 lockedCenter;
@@ -103,10 +111,28 @@ public class BossAttackController : MonoBehaviour
     private float lockedRadius;
     private float lockedArcAngle;
     private float lockedDuration;
+    private TelegraphShapeType lockedShape;
+    private float lockedBoxWidth;
 
     // Cache Mesh quạt đơn vị (bán kính = 1m) dùng chung cho cả Fill và Outline
     private Mesh sharedSectorMesh;
     private float cachedMeshArcAngle = -1f;
+
+    // Mesh chữ nhật đơn vị: rộng 1m (x từ -0.5..0.5), dài 1m (z từ 0..1); scale x = boxWidth, z = chiều dài
+    private Mesh sharedBoxMesh;
+
+    // Thống kê từng loại đòn trong trận (reset khi Replay)
+    [Serializable]
+    public class AttackStatEntry
+    {
+        public string attackName;
+        public int totalCasts;
+        public int hits;
+        public int iframeDodges;
+        public int misses;
+    }
+
+    private readonly System.Collections.Generic.List<AttackStatEntry> attackStats = new System.Collections.Generic.List<AttackStatEntry>();
 
     // Độ lệch Y nhỏ để tránh Z-fighting (nhấp nháy xuyên mặt sàn)
     private const float FloorYOffset = 0.015f;
@@ -150,6 +176,8 @@ public class BossAttackController : MonoBehaviour
         if (player != null)
         {
             playerHealth = player.GetComponentInParent<PlayerHealth>();
+            playerDodge = player.GetComponentInParent<PlayerDodge>();
+            playerCollider = player.GetComponentInChildren<Collider>();
         }
 
         if (!string.IsNullOrEmpty(walkSpeedParam))
@@ -158,6 +186,7 @@ public class BossAttackController : MonoBehaviour
         }
 
         HideTelegraphVisuals();
+        HideGroundCrack();
     }
 
     private void Update()
@@ -252,6 +281,7 @@ public class BossAttackController : MonoBehaviour
 
         UpdateWalkAnimator(0f);
         HideTelegraphVisuals();
+        HideGroundCrack();
         isAttacking = false;
         hitWindowOpened = false;
         hitWindowClosed = false;
@@ -265,6 +295,10 @@ public class BossAttackController : MonoBehaviour
         if (sharedSectorMesh != null)
         {
             Destroy(sharedSectorMesh);
+        }
+        if (sharedBoxMesh != null)
+        {
+            Destroy(sharedBoxMesh);
         }
     }
 
@@ -367,8 +401,6 @@ public class BossAttackController : MonoBehaviour
         }
 
         // 1. CHỐT MỘT LẦN toàn bộ thông số hình học và thời gian từ ScriptableObject
-        lockedCenter = new Vector3(transform.position.x, transform.position.y + FloorYOffset, transform.position.z);
-
         Vector3 bossForwardXZ = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
         if (bossForwardXZ.sqrMagnitude < 0.0001f)
         {
@@ -377,9 +409,15 @@ public class BossAttackController : MonoBehaviour
         bossForwardXZ.Normalize();
 
         lockedForward = Quaternion.AngleAxis(currentAttack.FacingOffsetDegrees, Vector3.up) * bossForwardXZ;
+
+        // Tâm vùng = vị trí Boss dời ra trước theo ZoneForwardOffset (điểm vũ khí chạm đất)
+        lockedCenter = new Vector3(transform.position.x, transform.position.y + FloorYOffset, transform.position.z)
+                       + lockedForward * currentAttack.ZoneForwardOffset;
         lockedRadius = currentAttack.Radius;
         lockedArcAngle = currentAttack.ArcAngleDegrees;
         lockedDuration = Mathf.Max(0.01f, currentAttack.TelegraphDuration);
+        lockedShape = currentAttack.ShapeType;
+        lockedBoxWidth = Mathf.Max(0.1f, currentAttack.BoxWidth);
 
         // 2. Kích hoạt Animator trigger trước (để ưu tiên chuyển thẳng Walk -> Red Attack thay vì bị kẹt qua Walk -> Idle 0.25s)
         if (animator != null && !string.IsNullOrEmpty(currentAttack.AnimatorTrigger))
@@ -393,7 +431,8 @@ public class BossAttackController : MonoBehaviour
         // 3. Chuẩn bị Mesh hình quạt đơn vị và hiện vùng quạt cảnh báo (chỉ hiện khi showTelegraphVisuals == true)
         if (showTelegraphVisuals)
         {
-            EnsureSectorMesh(lockedArcAngle);
+            EnsureTelegraphMesh();
+            Vector3 fullScale = GetTelegraphScale(1f);
 
             Quaternion attackRotation = Quaternion.LookRotation(lockedForward, Vector3.up);
 
@@ -401,7 +440,7 @@ public class BossAttackController : MonoBehaviour
             {
                 telegraphOutlineMesh.transform.position = lockedCenter;
                 telegraphOutlineMesh.transform.rotation = attackRotation;
-                telegraphOutlineMesh.transform.localScale = new Vector3(lockedRadius, 1f, lockedRadius);
+                telegraphOutlineMesh.transform.localScale = fullScale;
                 telegraphOutlineMesh.gameObject.SetActive(true);
             }
 
@@ -409,7 +448,7 @@ public class BossAttackController : MonoBehaviour
             {
                 telegraphFillMesh.transform.position = lockedCenter + Vector3.up * FillHeightBias;
                 telegraphFillMesh.transform.rotation = attackRotation;
-                telegraphFillMesh.transform.localScale = new Vector3(0f, 1f, 0f);
+                telegraphFillMesh.transform.localScale = GetTelegraphScale(0f);
                 telegraphFillMesh.gameObject.SetActive(true);
             }
         }
@@ -429,11 +468,10 @@ public class BossAttackController : MonoBehaviour
         {
             elapsedTime += Time.deltaTime;
             float progress = Mathf.Clamp01(elapsedTime / lockedDuration);
-            float currentFillRadius = lockedRadius * progress;
 
             if (showTelegraphVisuals && telegraphFillMesh != null)
             {
-                telegraphFillMesh.transform.localScale = new Vector3(currentFillRadius, 1f, currentFillRadius);
+                telegraphFillMesh.transform.localScale = GetTelegraphScale(progress);
             }
 
             yield return null;
@@ -444,7 +482,7 @@ public class BossAttackController : MonoBehaviour
         {
             if (showTelegraphVisuals && telegraphFillMesh != null)
             {
-                telegraphFillMesh.transform.localScale = new Vector3(lockedRadius, 1f, lockedRadius);
+                telegraphFillMesh.transform.localScale = GetTelegraphScale(1f);
             }
 
             float maxWaitForOpen = lockedDuration + Mathf.Max(0f, hitWindowTimeoutSeconds);
@@ -480,6 +518,12 @@ public class BossAttackController : MonoBehaviour
         // Chờ đến khi cửa sổ đóng (hoặc hết timeout)
         while (!hitWindowClosed && postOpenTimer < maxPostOpenWait)
         {
+            // Chỉ gây sát thương trong khoảng shockwaveActiveDuration (mặc định 0.35s) lúc sóng bùng nổ, sau đó sóng tan thì không gây sát thương nữa
+            if (currentAttack.GroundShockwave && postOpenTimer <= shockwaveActiveDuration)
+            {
+                CheckShockwaveContact();
+            }
+
             postOpenTimer += Time.deltaTime;
             yield return null;
         }
@@ -529,6 +573,9 @@ public class BossAttackController : MonoBehaviour
         hasHitPlayerThisWindow = false;
         hasDodgedThisWindow = false;
 
+        // Đếm 1 lần tung đòn khi cửa sổ trúng thực sự mở (đòn bị hủy do thiếu event không tính)
+        GetOrCreateStat(currentAttack).totalCasts++;
+
         // Đo thời gian thực từ lúc SetTrigger đến khi mở cửa sổ trúng
         float actualWindupSeconds = Time.realtimeSinceStartup - attackTriggerRealtime;
         float diff = actualWindupSeconds - lockedDuration;
@@ -544,6 +591,7 @@ public class BossAttackController : MonoBehaviour
 
         // Ẩn vùng cảnh báo NGAY khi kiếm bắt đầu có sát thương
         HideTelegraphVisuals();
+        ShowGroundCrack();
 
         if (swordHitbox != null)
         {
@@ -569,11 +617,16 @@ public class BossAttackController : MonoBehaviour
             swordHitbox.CloseWindow();
         }
 
+        AttackStatEntry stat = GetOrCreateStat(currentAttack);
+        if (hasHitPlayerThisWindow) stat.hits++;
+        else if (hasDodgedThisWindow) stat.iframeDodges++;
+        else stat.misses++;
+
         AttackResolved?.Invoke(currentAttack, hasHitPlayerThisWindow);
 
-        string outcomeText = hasDodgedThisWindow
-            ? "<color=cyan>ĐÃ NÉ (I-FRAME)</color>"
-            : (hasHitPlayerThisWindow ? "<color=red>TRÚNG</color>" : "<color=green>HỤT</color>");
+        string outcomeText = hasHitPlayerThisWindow
+            ? "<color=red>TRÚNG</color>"
+            : (hasDodgedThisWindow ? "<color=cyan>ĐÃ NÉ (I-FRAME)</color>" : "<color=green>HỤT</color>");
 
         Debug.Log($"[BossAttackController] OnHitWindowClose -> KẾT THÚC pha chém '{currentAttack.AttackName}' | " +
                   $"Kết quả: {outcomeText}");
@@ -672,6 +725,14 @@ public class BossAttackController : MonoBehaviour
             angleToPlayer = Vector3.Angle(forward, toPlayerXZ.normalized);
         }
 
+        if (lockedShape == TelegraphShapeType.BoxLine)
+        {
+            // Hình chữ nhật: chiếu vị trí Player lên trục dọc (forward) và trục ngang (right)
+            float along = Vector3.Dot(toPlayerXZ, forward);
+            float across = Vector3.Dot(toPlayerXZ, Vector3.Cross(Vector3.up, forward));
+            return along >= 0f && along <= radius && Mathf.Abs(across) <= lockedBoxWidth * 0.5f;
+        }
+
         if (distanceXZ > radius)
         {
             return false;
@@ -761,8 +822,257 @@ public class BossAttackController : MonoBehaviour
         mesh.RecalculateBounds();
     }
 
-    private void HideTelegraphVisuals()
+    /// <summary>
+    /// Gán Mesh phù hợp hình dạng đòn hiện tại (quạt hoặc chữ nhật) cho Fill và Outline.
+    /// Gán lại mỗi đòn vì pool có thể xen kẽ hai hình dạng.
+    /// </summary>
+    private void EnsureTelegraphMesh()
     {
+        Mesh meshToUse;
+        if (lockedShape == TelegraphShapeType.BoxLine)
+        {
+            if (sharedBoxMesh == null)
+            {
+                sharedBoxMesh = new Mesh { name = "BoxUnitMesh" };
+                BuildBoxMesh(sharedBoxMesh);
+            }
+            meshToUse = sharedBoxMesh;
+        }
+        else
+        {
+            EnsureSectorMesh(lockedArcAngle);
+            meshToUse = sharedSectorMesh;
+        }
+
+        if (telegraphFillMesh != null) telegraphFillMesh.sharedMesh = meshToUse;
+        if (telegraphOutlineMesh != null) telegraphOutlineMesh.sharedMesh = meshToUse;
+    }
+
+    /// <summary>
+    /// Scale của vùng cảnh báo theo tiến độ điền (0..1). Quạt: scale đều XZ theo bán kính.
+    /// Chữ nhật: bề rộng cố định, chỉ chiều dài (trục Z) tăng dần từ Boss.
+    /// </summary>
+    private Vector3 GetTelegraphScale(float progress)
+    {
+        if (lockedShape == TelegraphShapeType.BoxLine)
+        {
+            return new Vector3(lockedBoxWidth, 1f, lockedRadius * progress);
+        }
+        float r = lockedRadius * progress;
+        return new Vector3(r, 1f, r);
+    }
+
+    /// <summary>Dựng hình chữ nhật phẳng đơn vị: x từ -0.5..0.5, z từ 0..1, ngửa mặt lên +Y.</summary>
+    private void BuildBoxMesh(Mesh mesh)
+    {
+        mesh.Clear();
+        mesh.vertices = new[]
+        {
+            new Vector3(-0.5f, 0f, 0f), new Vector3(-0.5f, 0f, 1f),
+            new Vector3(0.5f, 0f, 1f), new Vector3(0.5f, 0f, 0f)
+        };
+        mesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+        mesh.uv = new[] { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f) };
+        mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+        mesh.RecalculateBounds();
+    }
+
+    private AttackStatEntry GetOrCreateStat(BossAttackData data)
+    {
+        string name = data != null ? data.AttackName : "Unknown";
+        for (int i = 0; i < attackStats.Count; i++)
+        {
+            if (attackStats[i].attackName == name) return attackStats[i];
+        }
+        AttackStatEntry entry = new AttackStatEntry { attackName = name };
+        attackStats.Add(entry);
+        return entry;
+    }
+
+    /// <summary>Xóa thống kê đòn đánh (gọi khi bắt đầu trận mới / Replay).</summary>
+    public void ResetAttackStatistics()
+    {
+        attackStats.Clear();
+    }
+
+    /// <summary>
+    /// Trả về tổng hợp thống kê: tổng số đòn, tổng trúng, tổng né I-frame và chuỗi theo từng đòn,
+    /// ví dụ "HorizontalSlash(T:4,H:1,D:2,M:1);StrongRedAttack(T:3,H:2,D:1,M:0)".
+    /// Dấu ';' ngăn cách đòn nên không đụng dấu ',' của CSV khi bọc trong ngoặc kép.
+    /// </summary>
+    public void GetAttackStatisticsSummary(out int totalCasts, out int totalHits, out int totalIframeDodges, out string breakdown)
+    {
+        totalCasts = 0;
+        totalHits = 0;
+        totalIframeDodges = 0;
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        for (int i = 0; i < attackStats.Count; i++)
+        {
+            AttackStatEntry s = attackStats[i];
+            totalCasts += s.totalCasts;
+            totalHits += s.hits;
+            totalIframeDodges += s.iframeDodges;
+            if (i > 0) sb.Append(';');
+            sb.Append(s.attackName.Replace(" ", "")).Append("(T:").Append(s.totalCasts)
+              .Append(",H:").Append(s.hits).Append(",D:").Append(s.iframeDodges)
+              .Append(",M:").Append(s.misses).Append(')');
+        }
+        breakdown = sb.ToString();
+    }
+
+    /// <summary>BattleLoopManager gọi để đồng bộ bật/tắt vùng cảnh báo theo Build A/B.</summary>
+    public void SetShowTelegraphVisuals(bool show)
+    {
+        showTelegraphVisuals = show;
+        if (!show) HideTelegraphVisuals();
+    }
+
+    /// <summary>
+    /// Đòn xung kích: mỗi khung hình trong cửa sổ trúng, nếu Player đứng trong vùng đã chốt và không I-frame
+    /// thì tính trúng (HandlePlayerHit tự chặn lần thứ 2). Đang I-frame thì chỉ ghi nhận "né", chưa tiêu thụ lượt trúng.
+    /// </summary>
+    private void CheckShockwaveContact()
+    {
+        if (hasProcessedPlayerContactThisWindow || player == null || playerCollider == null) return;
+        if (playerHealth != null && playerHealth.IsDead) return;
+
+        if (!IsInsideLockedZone(lockedCenter, lockedForward, lockedRadius, lockedArcAngle, out _, out _)) return;
+
+        if (playerDodge != null && playerDodge.IsInvulnerable)
+        {
+            hasDodgedThisWindow = true;
+            return;
+        }
+
+        HandlePlayerHit(playerCollider);
+    }
+
+    private static readonly int BaseColorPropId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorPropId = Shader.PropertyToID("_Color");
+    private MaterialPropertyBlock crackPropertyBlock;
+    private Renderer groundCrackRenderer;
+    private Color groundCrackBaseColor = Color.white;
+    private Coroutine groundCrackCoroutine;
+
+    /// <summary>
+    /// Kích hoạt hiệu ứng vệt nứt mặt đất: tự động kéo dãn từ tâm ra đủ 10m (hoặc lockedRadius),
+    /// giữ nguyên trong cửa sổ gây sát thương, sau đó mờ dần (Fade out alpha) rồi biến mất.
+    /// </summary>
+    private void ShowGroundCrack()
+    {
+        if (groundCrackMesh == null || currentAttack == null || !currentAttack.GroundShockwave) return;
+
+        if (groundCrackCoroutine != null)
+        {
+            StopCoroutine(groundCrackCoroutine);
+            groundCrackCoroutine = null;
+        }
+
+        float targetLength = lockedRadius;
+        float targetWidth = lockedShape == TelegraphShapeType.BoxLine
+            ? lockedBoxWidth
+            : Mathf.Max(1f, 2f * lockedRadius * Mathf.Sin(lockedArcAngle * 0.5f * Mathf.Deg2Rad));
+
+        groundCrackCoroutine = StartCoroutine(AnimateGroundCrackRoutine(lockedCenter, lockedForward, targetLength, targetWidth));
+    }
+
+    private IEnumerator AnimateGroundCrackRoutine(Vector3 center, Vector3 forward, float targetLength, float targetWidth)
+    {
+        if (sharedBoxMesh == null)
+        {
+            sharedBoxMesh = new Mesh { name = "BoxUnitMesh" };
+            BuildBoxMesh(sharedBoxMesh);
+        }
+
+        groundCrackMesh.sharedMesh = sharedBoxMesh;
+        groundCrackMesh.transform.position = center + Vector3.up * (FillHeightBias * 2f);
+        groundCrackMesh.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+
+        if (groundCrackRenderer == null)
+        {
+            groundCrackRenderer = groundCrackMesh.GetComponent<Renderer>();
+            if (groundCrackRenderer != null && groundCrackRenderer.sharedMaterial != null)
+            {
+                if (groundCrackRenderer.sharedMaterial.HasProperty(BaseColorPropId))
+                    groundCrackBaseColor = groundCrackRenderer.sharedMaterial.GetColor(BaseColorPropId);
+                else if (groundCrackRenderer.sharedMaterial.HasProperty(ColorPropId))
+                    groundCrackBaseColor = groundCrackRenderer.sharedMaterial.GetColor(ColorPropId);
+            }
+        }
+
+        if (crackPropertyBlock == null)
+        {
+            crackPropertyBlock = new MaterialPropertyBlock();
+        }
+
+        SetCrackAlpha(1f);
+        groundCrackMesh.gameObject.SetActive(true);
+
+        // Pha 1: Kéo dãn phóng ra từ tâm chạm kiếm (0 -> 10m) trong 0.18 giây
+        float stretchDuration = 0.18f;
+        float stretchTimer = 0f;
+        while (stretchTimer < stretchDuration)
+        {
+            stretchTimer += Time.deltaTime;
+            float t = Mathf.Clamp01(stretchTimer / stretchDuration);
+            // Ease-Out: phóng mạnh mẽ lúc đầu rồi hãm nhẹ ở đỉnh đòn
+            float eased = 1f - (1f - t) * (1f - t);
+            float curLen = Mathf.Max(0.1f, targetLength * eased);
+            float curWidth = Mathf.Max(0.1f, targetWidth * eased);
+            groundCrackMesh.transform.localScale = new Vector3(curWidth, 1f, curLen);
+            yield return null;
+        }
+
+        groundCrackMesh.transform.localScale = new Vector3(targetWidth, 1f, targetLength);
+
+        // Pha 2: Giữ nguyên trong suốt thời gian gây sát thương
+        while (!hitWindowClosed && isAttacking)
+        {
+            yield return null;
+        }
+
+        // Pha 3: Mờ dần (Fade Out) từ 1 về 0 trong 0.35 giây rồi biến mất
+        float fadeDuration = 0.35f;
+        float fadeTimer = 0f;
+        while (fadeTimer < fadeDuration)
+        {
+            fadeTimer += Time.deltaTime;
+            float alpha = Mathf.Clamp01(1f - (fadeTimer / fadeDuration));
+            SetCrackAlpha(alpha);
+            yield return null;
+        }
+
+        SetCrackAlpha(0f);
+        groundCrackMesh.gameObject.SetActive(false);
+        groundCrackCoroutine = null;
+    }
+
+    private void SetCrackAlpha(float alpha)
+    {
+        if (groundCrackRenderer == null || crackPropertyBlock == null) return;
+        groundCrackRenderer.GetPropertyBlock(crackPropertyBlock);
+        Color c = groundCrackBaseColor;
+        c.a = alpha;
+        crackPropertyBlock.SetColor(BaseColorPropId, c);
+        crackPropertyBlock.SetColor(ColorPropId, c);
+        groundCrackRenderer.SetPropertyBlock(crackPropertyBlock);
+    }
+
+    private void HideGroundCrack()
+    {
+        if (groundCrackCoroutine != null)
+        {
+            StopCoroutine(groundCrackCoroutine);
+            groundCrackCoroutine = null;
+        }
+
+        if (groundCrackMesh != null)
+        {
+            groundCrackMesh.gameObject.SetActive(false);
+        }
+    }
+
+    private void HideTelegraphVisuals()    {
         if (telegraphFillMesh != null)
         {
             telegraphFillMesh.gameObject.SetActive(false);
@@ -806,6 +1116,17 @@ public class BossAttackController : MonoBehaviour
             radius = currentAttack.Radius;
             arcAngle = currentAttack.ArcAngleDegrees;
             Gizmos.color = new Color(1f, 0.5f, 0.1f, 0.85f); // Màu cam xem trước
+        }
+
+        if (currentAttack.ShapeType == TelegraphShapeType.BoxLine)
+        {
+            Vector3 right = Vector3.Cross(Vector3.up, forward) * (currentAttack.BoxWidth * 0.5f);
+            Vector3 far = center + forward * radius;
+            Gizmos.DrawLine(center + right, far + right);
+            Gizmos.DrawLine(far + right, far - right);
+            Gizmos.DrawLine(far - right, center - right);
+            Gizmos.DrawLine(center - right, center + right);
+            return;
         }
 
         DrawSectorGizmo(center, forward, radius, arcAngle);

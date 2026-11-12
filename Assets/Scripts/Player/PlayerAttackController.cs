@@ -52,7 +52,7 @@ public class PlayerAttackController : MonoBehaviour
 
     [Tooltip("Sau khi nhát chém kết thúc, nếu người chơi không bấm tiếp trong số giây này thì lần bấm sau quay lại nhát đầu (Slash2)")]
     [Min(0f)]
-    [SerializeField] private float comboResetTime = 0.8f;
+    [SerializeField] private float comboResetTime = 1.8f;
 
     [Header("Attack Configuration")]
     [Tooltip("Sát thương mỗi nhát chém bằng lưỡi kiếm")]

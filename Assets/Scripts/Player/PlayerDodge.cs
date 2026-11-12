@@ -13,7 +13,7 @@ using UnityEngine.InputSystem;
 public class PlayerDodge : MonoBehaviour
 {
     [Header("Input References")]
-    [Tooltip("Tham chiếu Input Action dùng để kích hoạt né (Left Shift - Sprint Action)")]
+    [Tooltip("Tham chiếu Input Action dùng để kích hoạt né (hoặc phím Space mặc định)")]
     [SerializeField] private InputActionReference dodgeAction;
 
     [Header("Roll Mechanics")]
@@ -89,21 +89,11 @@ public class PlayerDodge : MonoBehaviour
 
     private void OnEnable()
     {
-        if (dodgeAction != null && dodgeAction.action != null)
-        {
-            dodgeAction.action.Enable();
-            dodgeAction.action.performed += OnDodgePerformed;
-        }
+        // Loại bỏ hoàn toàn phím Shift, chỉ lắng nghe phím Space trong Update
     }
 
     private void OnDisable()
     {
-        if (dodgeAction != null && dodgeAction.action != null)
-        {
-            dodgeAction.action.performed -= OnDodgePerformed;
-            dodgeAction.action.Disable();
-        }
-
         if (rollCoroutine != null)
         {
             StopCoroutine(rollCoroutine);
@@ -117,9 +107,16 @@ public class PlayerDodge : MonoBehaviour
         }
     }
 
-    private void OnDodgePerformed(InputAction.CallbackContext context)
+    private void Update()
     {
-        TryStartRoll();
+        // Chỉ dùng phím Space (hoặc nút A trên tay cầm) để lăn né, loại bỏ hoàn toàn phím Shift
+        bool spacePressed = Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
+        bool gamepadPressed = Gamepad.current != null && Gamepad.current.buttonSouth.wasPressedThisFrame;
+
+        if (spacePressed || gamepadPressed)
+        {
+            TryStartRoll();
+        }
     }
 
     /// <summary>

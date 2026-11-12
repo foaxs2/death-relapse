@@ -12,13 +12,13 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
 - **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
 - **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thiện và kiểm thử đạt 6/6 test EditMode Xanh:
-  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, phòng vệ đầu vào âm/NaN, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` (sát thương 75 HP; combo 2 nhát Slash2 → Slash theo mảng `steps`, mỗi nhát có tốc độ/nghỉ/kiếm khí riêng; CHƯA test trong Editor) + `SwordSlashTrail.cs` (vệt kiếm khí trắng bám theo quỹ đạo lưỡi kiếm, hitbox kéo dài; chỉnh được tầm xa/độ dày/thời gian mờ; cửa sổ combo 0.8s tính từ lúc click) + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
+- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thiện và kiểm thử đạt 6/6 test EditMode Xanh; MCP bridge kết nối trực tiếp với Unity 6000.3.11f1 qua port 8090. Đã hoàn thành Tính năng #2 (Multi-Attack Data-Driven: Horizontal Slash + Strong Red Attack nứt đất 10m, Build A/B cố định, Khảo sát In-Game TextMeshPro) và Tích hợp Telemetry đồng bộ Google Sheets Webhook kèm CSV fallback.
+  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, phòng vệ đầu vào âm/NaN, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` (sát thương 75 HP; combo 2 nhát với clip mới và Slash2 theo mảng `steps`, mỗi nhát có tốc độ/nghỉ/kiếm khí riêng; `comboResetTime = 1.8s`) + `SwordSlashTrail.cs` (vệt kiếm khí trắng bám theo quỹ đạo lưỡi kiếm, hitbox kéo dài) + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
   - **Boss:** `BossHealth.cs` (3000 HP, phòng vệ đầu vào âm/NaN), `BossAttackData.cs` (hỗ trợ `attackStateName`), `BossAttackController.cs` (AI tự xoay mặt nhắm Player, tầm đánh 2.5m, đi bộ `GreatAxeWalk` khi ngoài tầm, chọn đòn ngẫu nhiên từ `attackPool`, công tắc `showTelegraphVisuals = false` cho Thí nghiệm 1, phân biệt log `ĐÃ NÉ (I-FRAME)` / `TRÚNG` / `HỤT`), `SwordHitbox.cs` (dùng chung cho kiếm Boss và kiếm Player).
   - **UI & Vòng lặp & Telemetry:** `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`, `TelemetryLogger.cs` (ghi `telemetry_log.jsonl`: `SessionStart`, `PlayerDefeated`, `BossDefeated`), `BattleLoopManager.cs` (màn hình Thắng/Thua với nút Replay và tự reset khi rơi khỏi bản đồ `y < -5f`, đã bỏ phím `R`).
   - **Tests:** 6 bài EditMode tests đạt PASS 100% (`PlayerHealthEditModeTests.cs` + `CombatAndBossWeek4EditModeTests.cs`).
 - **Asset đã có:** `com.unity.cloud.gltfast` (6.20.0), model Knight + kiếm `Moonbrand` (`BladeBase`/`BladeTip`), model Boss + kiếm, các clip Mixamo (`Slash.fbx`, `GreatAxeWalk.fbx`, `GreatAxeStrongRedAttack.fbx`, TextMesh Pro...).
-- **Việc đang dở:** Sửa animation Slash đầu tiên đang có vấn đề; mở rộng bộ đòn đánh (`attackPool`) của Boss và hoàn thiện phân nhóm A/B cho bản build Pilot.
+- **Việc đang dở:** Tinh chỉnh cảm giác nhìn (VFX / Shader) cho vệt nứt đất và kiểm tra dữ liệu telemetry gửi về Google Sheets sau trận đấu thực tế.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
 
 ---
@@ -354,3 +354,52 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Sửa animation Slash đầu tiên (đổi clip trong Animator, chỉnh ttackDuration/hit window trong steps).
 - **Commit:** [AI] feat: combo Slash2-Slash và vệt kiếm khí bám theo lưỡi kiếm
+
+## [2026-11-11 13:15] Tuần 5: Multi-attack, Build A/B, khảo sát cuối trận, Telemetry Google Sheets
+- **Công cụ/model:** Gemini (Antigravity), Claude Sonnet 5.5
+- **Yêu cầu của tôi (tóm tắt):** Thêm hình dạng telegraph BoxLine, thống kê từng đòn, Build A/B cố định, khảo sát 1 click cuối trận, gửi telemetry lên Google Sheets kèm CSV và hàng đợi offline.
+- **AI đã làm (file tạo/sửa):** BossAttackData.cs (enum TelegraphShapeType, shapeType, boxWidth), BossAttackController.cs (mesh chữ nhật, scale theo hình dạng, kiểm tra vùng cho BoxLine, thống kê T/H/D/M, ResetAttackStatistics, GetAttackStatisticsSummary, SetShowTelegraphVisuals), BattleLoopManager.cs (ExperimentBuildMode, ApplyBuildMode, khảo sát tạo bằng code, khóa Replay tới khi trả lời), TelemetryLogger.cs (SubmitMatchReport, JSONL + CSV, UnityWebRequest POST timeout 8s, hàng đợi 	elemetry_unsent_queue.jsonl, gửi bù khi khởi động).
+- **Quyết định kỹ thuật và lý do:** Đếm totalCasts khi cửa sổ trúng mở để T = H + D + M luôn khớp. Hitbox thật vẫn là SwordHitbox; BoxLine chỉ ảnh hưởng vùng cảnh báo và log kiểm chứng. Ghi JSONL cục bộ trước khi gửi mạng để không mất dữ liệu. CSV ghi sau khi biết kết quả sync (SyncStatus: Synced/QueuedOffline/LocalOnly).
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch và chưa chạy 6 test EditMode (Editor không mở được: project 6000.3.11f1, máy chỉ có 6000.6.2f1, mở bằng bản khác sẽ nâng cấp project). Chưa thử webhook thật và redirect 302 của Apps Script. Hitbox kiếm của đòn bổ dọc có thể không khớp BoxLine, cần chỉnh radius/boxWidth.
+- **Cách kiểm tra đề xuất:** Mở project bằng đúng 6000.3.11f1, kiểm tra Console không lỗi, chạy EditMode tests (6/6). Tạo BossAttackData BoxLine cho GreatAxeStrongRedAttack. Chơi GroupA/GroupB, thua/thắng, chọn khảo sát, kiểm tra 	elemetry_report.csv; thử tắt mạng để thấy 	elemetry_unsent_queue.jsonl.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Dán URL webhook vào TelemetryLogger, viết Apps Script nhận 12 trường, tạo asset đòn BoxLine.
+- **Commit:** (chưa commit)
+
+## [2026-11-11 18:05] Cập nhật Animation chém mới, chỉnh thông số Inspector và tăng comboResetTime lên 1.8s
+- **Công cụ/model:** Gemini (Antigravity), Gemini 3.8 Flash
+- **Yêu cầu của tôi (tóm tắt):** Hướng dẫn cấu hình thông số Inspector cho clip chém mới (44 frame) và clip thứ 2 (37 frame); đảo thứ tự chém (clip mới chém trước, clip 2 chém sau); tăng thời gian chờ combo thứ 2 lên 1.8s và ghi nhận thay đổi vào NguCanh.md.
+- **AI đã làm (file tạo/sửa):** Hướng dẫn công thức quy đổi frame sang giây (30 FPS), phân bổ thông số vào Element 0 và Element 1; phân tích nguyên nhân combo bị nghẽn nếu để thời gian chờ quá ngắn; cập nhật `NguCanh.md` và `CREDITS.md`.
+- **Quyết định kỹ thuật và lý do:** Clip mới 44 frame (~1.47s), clip 2 37 frame (~1.23s) ở chuẩn 30 FPS. Nếu giữ `comboResetTime = 0.8s` thì sau khi hết nhát 1, combo đã quá hạn reset trước khi người chơi kịp click nhát 2. Tăng `comboResetTime` lên 1.8s giúp cửa sổ kích hoạt combo nối tiếp khớp với độ dài thực tế của animation.
+- **Chưa kiểm chứng / rủi ro:** Cần kiểm tra nhịp độ trận đấu trong Unity Editor: đòn chém dài 1.47s có thể tạo cảm giác hơi chậm so với game boss-rush góc nhìn trên xuống (có thể tăng `animationSpeed` lên 1.5x - 1.8x trong Inspector nếu cần nhanh hơn).
+- **Cách kiểm tra đề xuất:** Vào Play Mode, click chuột kiểm tra đòn chém 1 (clip mới chém ngang) ra đòn chuẩn; click tiếp nhát 2 trong vòng 1.8s để xác nhận chuỗi combo kích hoạt đúng; chờ quá 1.8s bấm lại để xác nhận reset về nhát 1.
+- **Tôi đã kiểm tra / chỉnh sửa:** Theo lời tôi: project biên dịch không lỗi. Tôi yêu cầu sửa: (1) bỏ phần UI khảo sát do AI tự tạo bằng code đè lên màn hình thua; chuyển sang tự dựng trong Unity để chỉnh được kích thước, màu, vị trí (gán qua Survey Root / Survey Button A / Survey Button B / Survey Status Text trong BattleLoopManager); (2) ô trạng thái khảo sát dùng TextMeshPro thay vì Legacy Text (asmdef thêm Unity.TextMeshPro). Hai chỉnh sửa này AI đã làm theo, chưa ghi nhật ký riêng.
+- **Việc tiếp theo:** Kiểm tra trải nghiệm thực tế trong trận chiến với Boss, tinh chỉnh tốc độ animationSpeed nếu cần đòn chém nhanh hơn.
+- **Commit:** (chưa commit)
+
+## [2026-11-12 18:20] Đòn xung kích nứt đất (GroundShockwave) cho đòn bổ dọc
+- **Công cụ/model:** Gemini (Antigravity), Claude Sonnet 5.5
+- **Yêu cầu của tôi (tóm tắt):** Boss đập vũ khí, sóng xung kích từ kiếm chẻ đất; Player đứng trong vùng hoặc chạm kiếm thì -125 HP; hỏi cách tìm asset nứt đất, sửa lỗi chân Boss lún xuống đất, làm hiệu ứng chém theo hướng mong muốn.
+- **AI đã làm (file tạo/sửa):** BossAttackData.cs (thêm zoneForwardOffset, groundShockwave), BossAttackController.cs (tâm vùng dời theo offset; CheckShockwaveContact kiểm tra Player trong vùng suốt cửa sổ trúng, tối đa 1 lần; groundCrackMesh hiện lúc OnHitWindowOpen và tắt khi đòn kết thúc; thống kê ưu tiên Trúng hơn Né).
+- **Quyết định kỹ thuật và lý do:** Dùng chung hình học cho cảnh báo, vùng nứt và sát thương (quy tắc mục 7). Vết nứt hiện ở cả nhóm A và B vì là đòn thật, không phải telegraph. Sát thương 125 đặt trong asset BossAttackData, không để số cứng.
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch, chưa chạy trong Editor. Nguyên nhân lún chân (Root Transform Position Y chưa Bake Into Pose) là chẩn đoán từ file .meta, chưa thử. Chưa có asset vết nứt.
+- **Cách kiểm tra đề xuất:** Tạo asset đòn với Ground Shockwave bật, gán Ground Crack Mesh, đứng trong vùng lúc đập và xem máu giảm đúng 125 một lần; lăn I-frame qua vùng thì không mất máu.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Chọn asset/texture vết nứt, chỉnh Bake Into Pose Y cho clip, làm hiệu ứng vệt chém.
+- **Commit:** (chưa commit)
+
+## [2026-11-12 21:30] Sóng xung kích nứt đất co dãn, né bằng Space, chặn sát thương tồn đọng và tích hợp Google Sheets Webhook
+- **Công cụ/model:** Gemini (Antigravity), Gemini 3.8 Flash
+- **Yêu cầu của tôi (tóm tắt):** Xử lý viền mềm cho texture nứt đất chuyển vào Assets/Textures/; chỉ dùng Space để né (bỏ hoàn toàn Shift); kiểm tra lỗi đi vào vùng nứt sau khi đập vẫn dính sát thương; tích hợp URL Google Sheets Webhook để đồng bộ kết quả trận; cập nhật NguCanh và commit code.
+- **AI đã làm (file tạo/sửa):**
+  - Assets/Textures/T_GroundCrack_Shockwave.png: Tối ưu feather viền ngoài, crop chuẩn tỷ lệ 10m x 5m.
+  - Assets/Scripts/Player/PlayerDodge.cs: Gỡ bỏ hook dodgeAction, chỉ nhận phím Space và Gamepad button South.
+  - Assets/Scripts/Boss/BossAttackController.cs: Thêm animation kéo dãn phóng ra 0.18s + fade out alpha 0.35s; thêm shockwaveActiveDuration = 0.35f ngăn sát thương tồn đọng khi sóng đã tan.
+  - Assets/Scripts/Core/TelemetryLogger.cs: Gán URL Webhook Google Apps Script mặc định và cơ chế fallback tự nạp khi khởi động.
+  - Assets/Editor/UnityMcpBridge.cs: Cầu nối kết nối MCP với Unity Editor port 8090.
+- **Quyết định kỹ thuật và lý do:** Luồng sóng xung kích chỉ có tính sát thương trong 0.35s khi bùng nổ, tránh việc animation event OnHitWindowClose đặt quá trễ (time 0.89) khiến người chơi bước vào vệt nứt nguội vẫn bị trừ máu. Loại bỏ Shift hoàn toàn để thống nhất trải nghiệm né bằng Space. Gán fallback URL Webhook trong code để đảm bảo dữ liệu gửi đúng ngay cả khi chưa kịp dán tay trong scene.
+- **Chưa kiểm chứng / rủi ro:** Cần kiểm tra lại trực tiếp trong Play Mode xem cảm giác né bằng Space mượt mà chưa, và xác nhận dữ liệu đã về sheet Google khi hoàn thành trận.
+- **Cách kiểm tra đề xuất:** Vào Play Mode, bấm Space để né đòn; để Boss tung đòn đập đất, quan sát vệt nứt phóng ra 10m và fade out; đi bộ vào vệt nứt sau 0.5s để xác nhận không bị mất máu; kết thúc trận và trả lời khảo sát để kiểm tra hàng mới xuất hiện trên Google Sheets.
+- **Tôi đã kiểm tra / chỉnh sửa:** Đã sửa lỗi chân Boss bị lún bằng cách chỉnh Position (Y) Offset xuống -0.64; đã test đòn bổ kiếm có hiệu ứng mặt sàn xuất hiện nhưng phát hiện frame close để hơi dài khiến đi bộ vào sau đó vẫn bị dính đòn; đã yêu cầu chỉ dùng Space để né (bỏ Shift) và cung cấp link Webhook Google Sheets.
+- **Việc tiếp theo:** Vào Play Mode kiểm tra lại hoạt động của sóng nứt đất, né bằng Space và xác nhận dữ liệu đổ về Google Sheets.
+- **Commit:** [AI] feat: sóng xung kích nứt đất co dãn, né bằng Space, webhook Google Sheets
