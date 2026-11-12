@@ -18,7 +18,7 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
   - **UI & Vòng lặp & Telemetry:** `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`, `TelemetryLogger.cs` (ghi `telemetry_log.jsonl`: `SessionStart`, `PlayerDefeated`, `BossDefeated`), `BattleLoopManager.cs` (màn hình Thắng/Thua với nút Replay và tự reset khi rơi khỏi bản đồ `y < -5f`, đã bỏ phím `R`).
   - **Tests:** 6 bài EditMode tests đạt PASS 100% (`PlayerHealthEditModeTests.cs` + `CombatAndBossWeek4EditModeTests.cs`).
 - **Asset đã có:** `com.unity.cloud.gltfast` (6.20.0), model Knight + kiếm `Moonbrand` (`BladeBase`/`BladeTip`), model Boss + kiếm, các clip Mixamo (`Slash.fbx`, `GreatAxeWalk.fbx`, `GreatAxeStrongRedAttack.fbx`, TextMesh Pro...).
-- **Việc đang dở:** Tinh chỉnh cảm giác nhìn (VFX / Shader) cho vệt nứt đất và kiểm tra dữ liệu telemetry gửi về Google Sheets sau trận đấu thực tế.
+- **Việc đang dở:** Hoàn thiện kiểm tra luồng kết thúc (Thắng ẩn khảo sát / Thua hiện khảo sát) và đối chiếu bảng tính Google Sheets trong các trận đánh Play Mode tiếp theo.
 - **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
 
 ---
@@ -403,3 +403,17 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** Đã sửa lỗi chân Boss bị lún bằng cách chỉnh Position (Y) Offset xuống -0.64; đã test đòn bổ kiếm có hiệu ứng mặt sàn xuất hiện nhưng phát hiện frame close để hơi dài khiến đi bộ vào sau đó vẫn bị dính đòn; đã yêu cầu chỉ dùng Space để né (bỏ Shift) và cung cấp link Webhook Google Sheets.
 - **Việc tiếp theo:** Vào Play Mode kiểm tra lại hoạt động của sóng nứt đất, né bằng Space và xác nhận dữ liệu đổ về Google Sheets.
 - **Commit:** [AI] feat: sóng xung kích nứt đất co dãn, né bằng Space, webhook Google Sheets
+
+## [2026-11-12 22:30] Ẩn khảo sát khi Thắng và định dạng Timestamp giờ Việt Nam
+- **Công cụ/model:** Gemini (Antigravity), Gemini 3.8 Flash
+- **Yêu cầu của tôi (tóm tắt):** Màn hình Thắng ẩn panel SurveyRoot (chỉ lưu kết quả thắng, mở nút Replay ngay); chỉ hiện SurveyRoot khi Thua; đổi định dạng Timestamp sang giờ Việt Nam (Ngày/Tháng/Năm - GiờhPhútpGiâys); cập nhật NguCanh và commit code.
+- **AI đã làm (file tạo/sửa):**
+  - Assets/Scripts/Core/BattleLoopManager.cs: Ẩn surveyRoot khi HandleBossDied(), tự động đồng bộ kết quả Victory với surveyAnswer = "PlayerWon" lên Google Sheets, mở khóa ngay nút Replay; chỉ bật surveyRoot trong HandlePlayerDied().
+  - Assets/Scripts/Core/TelemetryLogger.cs: Thêm hàm GetVietnamTimestamp(), chuyển mốc thời gian sang giờ Việt Nam (UTC+7) định dạng dd/MM/yyyy - HH\hmm\pss\s.
+  - Assets/Animations/Boss/GreatAxeStrongRedAttack.fbx.meta: Người dùng đã chủ động kéo mốc OnHitWindowClose từ  .89 về  .617 (~frame 80) khớp sau cú đập kiếm.
+- **Quyết định kỹ thuật và lý do:** Khảo sát nguyên nhân kết quả trận ("do thao tác hay do đòn khó đoán") chỉ có ý nghĩa khi người chơi bị thua/chết. Khi thắng, giao diện được giải phóng để tôn vinh chiến thắng, đồng thời tự động lưu telemetry không làm gián đoạn trải nghiệm. Timestamp giờ Việt Nam giúp người đọc báo cáo trên Google Sheets nắm bắt thời gian trực quan ngay lập tức.
+- **Chưa kiểm chứng / rủi ro:** Đã test ping Webhook Google Sheets thành công với timestamp mới. Cần người chơi hoàn thành 1 trận thắng và 1 trận thua trong Play Mode để xác nhận UI hiển thị đúng ý.
+- **Cách kiểm tra đề xuất:** Vào Play Mode, đánh thắng Boss để kiểm tra màn hình Victory không còn SurveyRoot và nút Replay bấm được ngay; chơi lại và để Boss hạ gục để kiểm tra màn hình Defeat hiện SurveyRoot bình thường.
+- **Tôi đã kiểm tra / chỉnh sửa:** (để trống, người dùng tự điền)
+- **Việc tiếp theo:** Kiểm tra dữ liệu ghi nhận đầy đủ cả 2 trường hợp Thắng và Thua trên Google Sheets.
+- **Commit:** [AI] feat: ẩn khảo sát khi thắng, định dạng timestamp giờ Việt Nam

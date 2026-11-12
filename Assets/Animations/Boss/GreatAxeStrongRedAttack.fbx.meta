@@ -62,7 +62,7 @@ ModelImporter:
         floatParameter: 0
         intParameter: 0
         messageOptions: 0
-      - time: 0.8903318
+      - time: 0.6173551
         functionName: OnHitWindowClose
         data: 
         objectReferenceParameter: {instanceID: 0}

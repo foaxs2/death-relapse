@@ -156,7 +156,7 @@ public class TelemetryLogger : MonoBehaviour
 
         TelemetryEventRecord record = new TelemetryEventRecord
         {
-            timestamp = DateTime.UtcNow.ToString("o"),
+            timestamp = GetVietnamTimestamp(),
             sessionId = sessionId,
             experimentGroup = experimentGroup,
             eventName = eventName,
@@ -194,7 +194,7 @@ public class TelemetryLogger : MonoBehaviour
 
         MatchReportPayload payload = new MatchReportPayload
         {
-            timestamp = DateTime.UtcNow.ToString("o"),
+            timestamp = GetVietnamTimestamp(),
             sessionId = sessionId,
             experimentGroup = experimentGroup,
             matchResult = matchResult,
@@ -331,6 +331,15 @@ public class TelemetryLogger : MonoBehaviour
         {
             Debug.LogError($"[TelemetryLogger] Lỗi khi ghi CSV '{path}': {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Định dạng mốc thời gian theo múi giờ Việt Nam (UTC+7): Ngày/Tháng/Năm - GiờhPhútpGiâys (ví dụ: 12/11/2026 - 22h26p30s)
+    /// </summary>
+    private static string GetVietnamTimestamp()
+    {
+        DateTime vnTime = DateTime.UtcNow.AddHours(7);
+        return vnTime.ToString("dd/MM/yyyy - HH\\hmm\\pss\\s");
     }
 
     // Bọc ngoặc kép vì AttackBreakdown chứa dấu phẩy

@@ -258,10 +258,35 @@ public class BattleLoopManager : MonoBehaviour
         endPlayerHP = remainingPlayerHP;
         endBossHP = 0f;
 
+        // Ẩn panel khảo sát khi Thắng theo yêu cầu (chỉ hiện khi Thua)
+        if (surveyRoot != null)
+        {
+            surveyRoot.SetActive(false);
+        }
+
+        // Tự động ghi nhận và đồng bộ báo cáo chiến thắng lên Telemetry / Google Sheets
+        int totalCasts = 0, totalHits = 0, totalDodges = 0;
+        string breakdown = string.Empty;
+        if (bossAttackController != null)
+        {
+            bossAttackController.GetAttackStatisticsSummary(out totalCasts, out totalHits, out totalDodges, out breakdown);
+        }
+
+        if (telemetryLogger != null)
+        {
+            telemetryLogger.SubmitMatchReport(endMatchResult, endPlayerHP, endBossHP,
+                totalCasts, totalHits, totalDodges, breakdown, "PlayerWon", null);
+        }
+
+        Button replayBtn = ResolveReplayButton(victoryPanel, victoryReplayButton);
+        if (replayBtn != null)
+        {
+            replayBtn.interactable = true;
+        }
+
         if (victoryPanel != null)
         {
             victoryPanel.SetActive(true);
-            ShowSurvey(ResolveReplayButton(victoryPanel, victoryReplayButton));
         }
         else
         {
@@ -342,7 +367,11 @@ public class BattleLoopManager : MonoBehaviour
         Button replayBtn = buttonObj.AddComponent<Button>();
         replayBtn.targetGraphic = buttonImage;
         replayBtn.onClick.AddListener(RestartBattle);
-        ShowSurvey(replayBtn);
+
+        if (titleMessage == "YOU DIED")
+        {
+            ShowSurvey(replayBtn);
+        }
 
         GameObject btnTextObj = new GameObject("ButtonText");
         btnTextObj.transform.SetParent(buttonObj.transform, false);
