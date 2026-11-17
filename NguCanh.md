@@ -8,19 +8,13 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 
 > AI ghi đè khối này mỗi lần cập nhật, tối đa 25 dòng.
 
-- **Đề tài:** Death Relapse, đồ án chuyên ngành. Nghiên cứu ảnh hưởng của cách báo đòn (telegraph) của boss lên khả năng nhận đúng loại đòn và cảm giác công bằng của người chơi, thí nghiệm A/B.
-- **Công nghệ:** Unity 6 LTS, URP, C#, Input System Package (bản mới).
-- **Thể loại:** boss-rush 3D, camera cố định nghiêng từ trên xuống, 1 arena, 1 boss.
-- **Mốc:** bản build có chế độ A/B và telemetry xong trước 6/11/2026. Pilot từ 7/11 trên itch.io (bản Windows).
-- **Trạng thái code:** Đã tạo project Unity, repo Git `main`. Đã hoàn thiện và kiểm thử đạt 6/6 test EditMode Xanh; MCP bridge kết nối trực tiếp với Unity 6000.3.11f1 qua port 8090. Đã hoàn thành Tính năng #2 (Multi-Attack Data-Driven: Horizontal Slash + Strong Red Attack nứt đất 10m, Build A/B cố định, Khảo sát In-Game TextMeshPro) và Tích hợp Telemetry đồng bộ Google Sheets Webhook kèm CSV fallback.
-  - **Player:** `PlayerMovement.cs` (di chuyển 8 hướng xoay theo hướng chạy WASD kiểu Hades, xoay tức thì về phía con trỏ chuột khi ra đòn qua `RotateTowardsMouseImmediate`), `PlayerDodge.cs` (lăn né I-frame theo hướng phím giữ WASD/chéo hoặc hướng nhìn), `PlayerHealth.cs` (300 HP, phòng vệ đầu vào âm/NaN, tự xóa trigger `Death` bị kẹt lúc mở màn), `PlayerAttackController.cs` (sát thương 75 HP; combo 2 nhát với clip mới và Slash2 theo mảng `steps`, mỗi nhát có tốc độ/nghỉ/kiếm khí riêng; `comboResetTime = 1.8s`) + `SwordSlashTrail.cs` (vệt kiếm khí trắng bám theo quỹ đạo lưỡi kiếm, hitbox kéo dài) + `PlayerAnimationEventRelay.cs` (chém kiếm chuột trái vào Boss).
-  - **Boss:** `BossHealth.cs` (3000 HP, phòng vệ đầu vào âm/NaN), `BossAttackData.cs` (hỗ trợ `attackStateName`), `BossAttackController.cs` (AI tự xoay mặt nhắm Player, tầm đánh 2.5m, đi bộ `GreatAxeWalk` khi ngoài tầm, chọn đòn ngẫu nhiên từ `attackPool`, công tắc `showTelegraphVisuals = false` cho Thí nghiệm 1, phân biệt log `ĐÃ NÉ (I-FRAME)` / `TRÚNG` / `HỤT`), `SwordHitbox.cs` (dùng chung cho kiếm Boss và kiếm Player).
-  - **UI & Vòng lặp & Telemetry:** `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`, `TelemetryLogger.cs` (ghi `telemetry_log.jsonl`: `SessionStart`, `PlayerDefeated`, `BossDefeated`), `BattleLoopManager.cs` (màn hình Thắng/Thua với nút Replay và tự reset khi rơi khỏi bản đồ `y < -5f`, đã bỏ phím `R`).
-  - **Tests:** 6 bài EditMode tests đạt PASS 100% (`PlayerHealthEditModeTests.cs` + `CombatAndBossWeek4EditModeTests.cs`).
-- **Asset đã có:** `com.unity.cloud.gltfast` (6.20.0), model Knight + kiếm `Moonbrand` (`BladeBase`/`BladeTip`), model Boss + kiếm, các clip Mixamo (`Slash.fbx`, `GreatAxeWalk.fbx`, `GreatAxeStrongRedAttack.fbx`, TextMesh Pro...).
-- **Việc đang dở:** Hoàn thiện kiểm tra luồng kết thúc (Thắng ẩn khảo sát / Thua hiện khảo sát) và đối chiếu bảng tính Google Sheets trong các trận đánh Play Mode tiếp theo.
-- **Vấn đề đã biết:** giáp váy của hiệp sĩ bị chân xuyên khi chạy (chấp nhận).
-
+- **Đề tài:** Death Relapse, đồ án chuyên ngành (boss-rush 3D, camera cố định nghiêng từ trên xuống, thí nghiệm A/B telegraph + Telemetry).
+- **Công nghệ:** Unity 6 LTS (6000.3.11f1), URP, C#, Input System Package, `com.unity.cloud.gltfast` (6.20.0).
+- **Bản đồ mới (`Assets/Maps/GothicPlateau/`):** Đã tắt `/Plane`, tích hợp map Gothic 3D (`scene_final.glb`), `115` MeshCollider chọn lọc + `23` CapsuleCollider gốc cây mảnh, tường tàng hình mép vực (`Invisible_Cliff_Wall.glb`) và tường rễ Đại Thụ (`Invisible_GreatTree_Barrier.glb`), ánh trăng + `14` Point Light ấm + `GothicNightSkybox`, rải `11,550` cụm hoa trắng bằng GPU Instancing (`GothicFlowerInstancer.cs`).
+- **Player & Combat:** `Knight` đặt tại `(-13.00, 0.99, 24.00)` trong bãi hoa Boss (`CameraFollow` offset `(0, 6, -7.09)`), giữ nguyên `PlayerMovement.cs`, `PlayerDodge.cs`, `PlayerHealth.cs`, `PlayerAttackController.cs`, `SwordSlashTrail.cs`.
+- **Boss & Arena:** `Boss` đặt tại `(-11.00, 0.55, 29.50)`; nâng cấp `BossAttackController.cs` thêm bám cao độ địa hình (`snapToTerrain`, raycast) và né vật cản `SphereCast`, đặt `FloorYOffset = 0.06f` cho telegraph và vệt nứt đất trên sườn dốc nhẹ.
+- **UI, Telemetry & Tests:** `BattleLoopManager.cs` (`bossAttackController` đã nối), `TelemetryLogger.cs`, `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`; 6 EditMode tests cũ đã đạt trước đó; đã kiểm thử va chạm/di chuyển map mới trong Play Mode (`consoleErrors = 0`).
+- **Việc tiếp theo:** Kiểm tra gameplay trận đấu & các khu vực vườn trong Play Mode; chạy lại EditMode tests; lưu ý Git LFS cho `scene_final.glb` (`~59 MB > 50 MB`) trước khi commit/push.
 ---
 
 ## Nhật ký
@@ -417,3 +411,157 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** (để trống, người dùng tự điền)
 - **Việc tiếp theo:** Kiểm tra dữ liệu ghi nhận đầy đủ cả 2 trường hợp Thắng và Thua trên Google Sheets.
 - **Commit:** [AI] feat: ẩn khảo sát khi thắng, định dạng timestamp giờ Việt Nam
+
+## [2026-11-16 18:42] PHẦN LỚN – Dựng môi trường 3D Cao nguyên Gothic bằng Blender headless (Giai đoạn 0–6)
+- **Công cụ/model:** Gemini (Antigravity), Blender 5.2.2 LTS headless (`bpy`, `bmesh`, EEVEE)
+- **Yêu cầu của tôi (tóm tắt):** Đọc `AgentRule.md`, thực hiện lần lượt Giai đoạn 1 đến 6 (kèm Giai đoạn 0 Setup & Contour) để dựng map Cao nguyên Gothic 3D trong `d:\GAME\Death RE`, đối chiếu ảnh tham chiếu qua từng vòng render và cập nhật `PROGRESS.md`.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `scripts/config.py`, `scripts/stage0_setup.py`, `scripts/stage1_terrain.py`, `refs/contour.json`: Trích xuất `180` điểm contour (`85.0m x 85.59m`, `SCALE = 85.0/572.0`) từ `refs/mask_plateau.png`; dựng lưới mặt cao nguyên phân tầng (`Zone_Church` `6.0m`, `Zone_Garden` `5.5m -> 0.5m`, `Zone_Boss` `4.6m -> 0.5m`, `Tree_Base`) kèm vách đá đùn 2 tầng (`18m` tỷ lệ `0.93` + `25m` thu nhỏ nón cụt `0.54`) và 2 shader procedural `Mat_Terrain_Top`, `Mat_Cliff_Rock`.
+  - `scripts/stage2_garden.py`: Dựng 3 tầng vườn bậc thang, `Mod_CobbleStep` (rộng `3.6m`, `0.16m/bậc`), `Mod_CobblePaver`, `Mod_RetainingWall` (`keep_upright=True`, chân cắm sâu `0.45m`), `Mod_IronFence`, `Mod_LanternPost` (dời ra mép `main_stair_center_x + 2.35m`), và `2,800` hạt `Mod_FlowerCluster_Garden`.
+  - `scripts/stage3_church.py`: Đặt Nhà thờ Gothic tại `(-6.8, 11.5, 6.0)` (`yaw = -15.0°`) khớp đỉnh bậc thang gồm `4` tháp trụ buttress (`x = ±4.92`), cửa gỗ đôi hé mở ~`28°`, cửa sổ vòm có nan đá tracery, tháp chuông ~`19.5m` và nội thất sơ bộ + bàn thờ nến.
+  - `scripts/stage4_boss_area.py`: Dựng bãi Boss (`Boss_Flower_Emitter` `5,000` cụm trên `Flower_Prototype`), tường ngăn Tây-Bắc kèm cổng sắt mở `3.8m`, ~`90` bia mộ ven vực + cụm phế tích `Boss_NERuins`, ~`25` bia nghiêng/đổ, `6` cột chữ thập (`3.0m–3.6m`) và `18` cụm đá sẫm bám rêu.
+  - `scripts/stage5_pillars_trees.py`: Dựng `Great_Tree` tại `(6.8, 9.5, 5.85)` có `Mat_GreatTree_BarkMoss` chuyển sắc mượt theo `Z`, `22` nhánh rễ nổi, tán khô tỏa ~`55m` cao ~`58m`; `18` cột đá ngoài biển sương (`65m–105m`) đỉnh gãy cụt; `23` cây thân mảnh (`8m–14m`) tán lá vàng úa thưa (`olive-gold`).
+  - `scripts/stage6_atmosphere.py`: Dựng biển sương `Sea_Of_Mist_*` 3 tầng (`-7.5m, -13m, -21m`) dùng `ShaderNodeEmission`, các khối Volumetric Fog 3D `FogVol_*`, bầu trời `World` mây ửng đỏ chân trời, `Moon_Sphere` (`r = 14.5m`, `Emission = 1.10`), đèn `SUN` ánh trăng + `7` đèn `POINT` ấm; xuất `output/scene_final.blend`, `output/scene_final.glb` (`1.22 MB`), `output/scene_final.fbx` (`1.03 MB`) và ảnh `renders/final/`.
+- **Quyết định kỹ thuật và lý do:** Tách pipeline theo `stage0..stage6` dùng chung hàm cao độ liên tục `config.get_terrain_height(x, y)` giúp mọi công trình/cây/hoa bám mặt đất không hở khớp; thay tấm sương 2D bằng Volumetric Fog 3D để loại bỏ vết cắt ngang mặt đất; giữ `1` mẫu `Flower_Prototype` trong GLB/FBX thay vì rải sẵn 7,800 mesh hoa nhằm giữ file nhẹ để engine tự GPU-instancing.
+- **Chưa kiểm chứng / rủi ro:** Các giai đoạn 1–6 mới nghiệm thu qua render tĩnh EEVEE ở Blender, chưa đi bộ thử ở góc nhìn người thứ nhất; chất liệu vẫn dùng shader procedural nên chưa tương thích trực tiếp với trình duyệt Web hay Unity URP.
+- **Cách kiểm tra đề xuất:** Xem bộ ảnh `d:\GAME\Death RE\renders\final\` (`01..06`) hoặc mở `output/scene_final.blend` để kiểm tra bố cục tổng thể.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Chuyển sang Giai đoạn 7 tinh chỉnh hình khối hữu cơ, bump map và ánh sáng trước khi xuất sang Web/Unity.
+- **Commit:** (`d:\GAME\Death RE`) `1a06756` (`stage 1`), `47dfc39` (`stage 2`), `dda383f` (`stage 3`), `b0247b7` (`stage 4`), `afd6b3c` (`stage 5`), `b655100` (`stage 6`)
+
+## [2026-11-16 19:10] SỬA LỚN – Giai đoạn 7 Polish: uốn hữu cơ cây/rễ, cầu thang chữ S, Procedural Bump & Bevel ánh sáng
+- **Công cụ/model:** Gemini (Antigravity), Blender 5.2.2 LTS
+- **Yêu cầu của tôi (tóm tắt):** Thực hiện Giai đoạn 7 nâng cấp độ tự nhiên, độ sần bề mặt và tương phản ánh sáng cho cao nguyên Gothic.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `scripts/stage7_polish.py`, `blend/stage7.blend`, `output/scene_final.blend`: Chia nhỏ Catmull-Rom (`14–20` đoạn) + cộng nhiễu Perlin turbulence 3D (`mathutils.noise.turbulence_vector`) cho thân, `24` nhánh rễ nổi phân rễ con và 4 cấp cành của `Great_Tree` lẫn `3` biến thể `Mod_SlenderTree`; uốn trục cầu thang chính `Garden` dạng chữ S (`s_curve_stair_x(y)` lệch ngang `±1.75m`) kèm xô lệch ngẫu nhiên `±0.03m` / `±1.5°` cho đá bậc và bia mộ.
+  - Bổ sung nhánh `Noise + Voronoi -> Bump` (`Strength = 0.36–0.60`) cho toàn bộ `18` vật liệu; gắn `Bevel` (`width = 0.038m`, `segments = 2`) lên `Church_Structure` & trụ đá; nâng độ tương phản giữa đèn ấm (`190W–310W`) và `Moon_Key_Sun = 2.65`.
+  - Cập nhật `output/scene_final.glb` (`3.15 MB`), `output/scene_final.fbx` (`3.47 MB`) và ảnh `renders/final/`.
+- **Quyết định kỹ thuật và lý do:** Dùng Catmull-Rom + Perlin turbulence và chữ S giúp triệt tiêu dáng thẳng nhân tạo trên cây, rễ và cầu thang; thêm `Bump` + `Bevel` giúp cạnh tường/bậc bắt ánh trăng lạnh rõ nét mà không làm nặng đáng kể hình học.
+- **Chưa kiểm chứng / rủi ro:** Cửa chính nhà thờ vẫn chỉ hé mở `28°` (chưa thông thoáng hoàn toàn để nhân vật đi xuyên), tán lá và thảm hoa còn hơi thưa ở góc gần, và toàn bộ texture vẫn ở dạng node procedural chưa bake PNG.
+- **Cách kiểm tra đề xuất:** Đối chiếu `renders/final/` xem đường cong chữ S bậc thang, vân đá sần và viền bevel tường nhà thờ.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Chạy vòng sửa nhỏ sau Giai đoạn 7 (mở cửa, tăng hoa/lá, vách đá, bake PBR 1024px) để chuẩn bị xuất Web 3D Viewer.
+- **Commit:** (`d:\GAME\Death RE`) `9d7fc68` (`stage 7: organic polish, s-curve stairs, voronoi bump, and bevel lighting`)
+
+## [2026-11-16 20:09] SỬA NHỎ – Vòng sửa sau Giai đoạn 7 (Mục 1–6: Mở cửa chính, tăng hoa lá, vách đá & Bake PBR 1024px)
+- **Công cụ/model:** Gemini (Antigravity), Blender 5.2.2 LTS
+- **Yêu cầu của tôi (tóm tắt):** Thực hiện 6 tinh chỉnh nhanh: mở thông cửa chính nhà thờ, tăng dày hoa trắng & lá cây vàng, thêm họa tiết vòm nhọn/chipped steps, đùn lại thớ vách đá, tăng tương phản sáng/tối và bake texture `1024px` xuất Web GLB.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `scripts/fix1_church_door.py` .. `fix6_web_export.py`: Gỡ bỏ 2 cánh cửa mặt tiền tạo lối thông `2.60m x 3.85m` liền sàn (`<= 0.08m/bậc`) và tách riêng `Church_Walls/Roof/Tower/Pinnacles/Windows/Interior/Door_SideL`; tăng hoa lên `8,500` (Boss) + `4,600` (Garden) và lá vàng lên ~`350–420` lá/cây; bổ sung cửa sổ vòm nhọn tracery + vát mẻ `bevel 0.026m` bậc thang; đùn lại vách đá `12` tầng (`0m -> -43m`) có thớ dọc; nâng `Moon_Key_Sun = 3.25` vs đèn ấm `190W–440W`; bake PBR `1024x1024` `BaseColor` + `Normal` PNG không còn node procedural (`ProceduralNodes=[]`) thành `output/web/scene_web.glb` (`44044 KB`), `flower.glb` (`2573 KB`), `flowers.json` (`13,100` cụm), `landmarks.json`.
+- **Quyết định kỹ thuật và lý do:** Bake shader procedural thành PNG `1024px` gắn `Principled BSDF` chuẩn glTF để cả Three.js lẫn `glTFast` Unity hiển thị đầy đủ vân đá/gỗ/rêu mà không mất chất liệu.
+- **Chưa kiểm chứng / rủi ro:** Chưa test tương tác trực tiếp bằng trình duyệt; cửa phụ hông trái `Church_Door_SideL` vẫn ở trạng thái đóng kín.
+- **Cách kiểm tra đề xuất:** Xem 4 ảnh tại `d:\GAME\Death RE\renders\fix6_web_export\` để xác nhận texture sau re-import GLB.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Xây dựng ứng dụng Web Three.js Viewer & Walk Mode (`web/`) để đi thử kiểm tra toàn bản đồ.
+- **Commit:** (`d:\GAME\Death RE`) `2c9ea20`..`6316c16` (`fix 1..6`)
+
+## [2026-11-16 20:35] PHẦN LỚN – Xây dựng Web Three.js Viewer, Explode, Chế độ Đi bộ & Camera Studio (Phases B1–B4)
+- **Công cụ/model:** Gemini (Antigravity), Vite 8 + Three.js + Chrome Headless CDP (`verify_phase.mjs`)
+- **Yêu cầu của tôi (tóm tắt):** Xây dựng ứng dụng Web (`web/`) có thể xoay quan sát, tách lớp kiến trúc (`Explode`), đi bộ góc nhìn thứ nhất `WASD` và thiết kế/xuất video đường bay camera.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `web/src/main.js`, `web/src/atmosphere.js` (Phase B1): Nạp `scene_web.glb` kèm thanh tiến trình, bầu trời shader đêm đỏ chân trời, mặt trăng + halo, `FogExp2`, biển sương 2 tầng, `DirectionalLight` trăng lạnh + `9` `PointLight` ấm, và `THREE.InstancedMesh` vẽ `13,100` cụm hoa đạt `~90–111 FPS`.
+  - `web/src/explode.js` (Phase B2): Chức năng bay camera nội suy (`1.15s`) tới các landmark, `7` công tắc ẩn/hiện nhóm, thanh trượt `Explode toàn cảnh` và `Explode Nhà thờ (Y)` tách tầng `Church_Interior -> Walls/Door -> Windows -> Roof -> Pinnacles -> Tower`.
+  - `web/src/walk.js` (Phase B3): Chế độ đi bộ `1.7m` (`PointerLockControls`, `WASD + Shift`), raycast mặt đất lọc độ cao bước `<= footY + 0.85m` và 3 tia nón va chạm tường ngang (`0°`, `±26°`, cao độ `+0.85m/+1.45m`).
+  - `web/src/cameraPath.js`, `web/public/paths/demo.json`, `web/FFMPEG_GUIDE.md`, `web/README.md` (Phase B4): Studio keyframe trên 2 đường cong `CatmullRomCurve3`, lưu/nạp JSON, hiển thị Title Card + Caption tiếng Việt + End Card, hành trình mẫu `demo.json` (`76.0s`, `11` keyframes) và trình xuất `.webm` (`1920x1080`, `30 fps`, bước `dt = 1/30 s`).
+- **Quyết định kỹ thuật và lý do:** Dùng Vite + Three.js thuần kết hợp `InstancedMesh` để dựng môi trường nhẹ nhanh ngay trên trình duyệt, đồng thời biến Walk Mode thành công cụ nghiệm thu kích thước cửa, độ dốc và va chạm thực tế trước khi chuyển sang Unity.
+- **Chưa kiểm chứng / rủi ro:** Kiểm thử tự động `verify_phase.mjs b1..b4` chạy sạch kịch bản cơ bản, nhưng khi đi bộ thử thực tế toàn cảnh đã phát hiện nhiều điểm cần chỉnh lại bố cục (kết nối vườn sau, lối đi Tây, cửa phụ, rào chắn vực, mật độ hoa).
+- **Cách kiểm tra đề xuất:** Chạy `npm run dev` trong `d:\GAME\Death RE\web` và thử Orbit, Explode, Đi bộ WASD cùng trình phát Camera Path.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Đại tu bố cục ở Vòng sửa 2 theo 8 ảnh tham chiếu mới (`refs/REFS.md`).
+- **Commit:** (`d:\GAME\Death RE`) `ca4630d` (`phase B1`), `936cbfb` (`phase B2`), `a7038b5` (`phase B3`), `e551f3b` (`phase B4`)
+
+## [2026-11-17 11:50] SỬA LỚN – Vòng sửa 2 (FIX 2): Dời Nhà thờ (+20%), Lối Tây B1..B6, Cửa phụ 3, Vườn sau tròn, Nội thất & Hoa sao 6 cánh
+- **Công cụ/model:** Gemini (Antigravity), Blender 5.2.2 LTS + Chrome CDP (`verify_phase.mjs`)
+- **Yêu cầu của tôi (tóm tắt):** Đối chiếu 8 ảnh tham chiếu mới: giữ nguyên `Great_Tree`, bỏ đường/cửa hông phải, dời Nhà thờ sang Tây (+20%), mở đường phía Tây đi qua `6` thềm bia mộ dẫn vào `Church_SideDoor_3` và vườn sau tròn, dựng nội thất nhà thờ đầy đủ và đổi hoa sang mẫu sao 6 cánh.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `refs/REFS.md`, `scripts/fix2_step1_layout_plan.py`, `fix2_layout_check.py`: Phân tích 8 ảnh mới; lập quy hoạch 2D đạt `5/5` bài kiểm tra liên thông và khoảng lùi contour (`4.07 m >= 3.7 m`, dốc `15.0% <= 20%`).
+  - `scripts/fix2_step2_stairs_fences.py` .. `fix2_step5_backyard_sidedoor3.py`: Giữ `Great_Tree` tại `(6.8, 9.5)`; đặt `Church_Root` tại `(-9.2, 11.5, 6.0)` (`1.20x`, cách tâm đại thụ `11.15m`); bỏ `Church_SideDoor_R`; dựng `Gate_Boss` tại `(2.4, -20.5, 2.35)` rộng `2.75m` (2 cánh mở `72°`); dựng 4 thềm xoắn (`2.15 -> 6.00m`), đường đá cuội (`2.4–3.0m`) và `6` thềm bia mộ hình thang `B1..B6` kèm tượng `Mat_Tomb_Statue_Glow`; mở `Church_SideDoor_3` (`1.80m x 2.76m`) ở tường trái sau dẫn sang lối mòn tròn `Zone_Backyard` (`đường kính 12.0m`, `rộng 1.5m`).
+  - `scripts/fix2_step6_church_interior.py`, `fix2_step7_white_flowers.py`: Dựng nội thất (`7,488` tris) có trần vòm 6 nhịp, ban công gỗ, tủ sách, bàn viết + nến + bàn thờ và thảm xanh lục `Mat_Church_Carpet_Green`; dựng mới `Flower_Prototype_Mesh` (`98` tris, `4` bông sao 6 cánh khum + `6` lá, `Principled BSDF` mịn 2 mặt xoay `Ry(+90°)` để mọc thẳng đứng) rải `8,200` (Boss) và `580` (Garden).
+  - `scripts/fix2_step8_web_export.py`, `web/src/explode.js`, `walk.js`, `web/public/paths/demo.json`: Bake `54` texture `1024px` (`32` vật liệu, `ProceduralNodes=[]`), xuất `flowers.json` (`8,780`), cập nhật `demo.json` (`70s`); test `3` tuyến đi bộ liên tục đạt `blocked = 0` ở `144 FPS`.
+- **Quyết định kỹ thuật và lý do:** Dời Nhà thờ sang Tây `(-9.2, 11.5)` thay vì dịch `Great_Tree` nhằm bảo toàn dáng gốc Đại Thụ và tách khỏi rễ; giữ cụm hoa ở `98 tris` (`<= 100 tris`) với hướng trục `Ry(+90°)` để vừa đạt thẩm mỹ cận cảnh vừa giữ `144 FPS` trên Web.
+- **Chưa kiểm chứng / rủi ro:** Đi bộ thử trên web sau Fix 2 phát hiện các lỗi tồn đọng: cầu thang/rào cũ còn sót chồng nhau, vài trụ đèn nằm giữa lối đi hoặc cắt bậc, `Church_Door_SideL` vẫn bị cánh cửa/cột chặn, gờ đảo cây quá cao (`2.56m`), vườn sau hở rào Đông/Nam và viền vực còn khe hở có thể rơi.
+- **Cách kiểm tra đề xuất:** Xem 7 ảnh `renders/fix2/` và chạy `verify_phase.mjs`.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Triển khai Vòng sửa 3 (kiểm toán `BVHTree` -> dọn triệt để các lỗi đi bộ, cửa, thang, đảo cây và rào chắn).
+- **Commit:** (`d:\GAME\Death RE`) `13a6be5`..`218d775` (`fix2 step 0..8`)
+
+## [2026-11-17 13:06] SỬA LỚN – Vòng sửa 3 (FIX 3): Kiểm toán BVHTree, thông 3 cửa, thang liên tục, rào kín 0 khe hở & 16 điểm mép vực
+- **Công cụ/model:** Gemini (Antigravity), Blender `BVHTree` + Chrome Headless (`verify_phase.mjs fix3`)
+- **Yêu cầu của tôi (tóm tắt):** Thực hiện Vòng sửa 3 kiểm toán toàn scene trước khi sửa: dọn mesh chồng/object thừa, thông thoáng cả 3 cửa nhà thờ + hành lang, làm bậc thang một dải liền mạch + đưa đèn ra mép thang, hạ đảo cây `<= 0.45m`, đóng kín rào vườn sau + viền vực và tăng hoa quanh nhà thờ/vườn sau.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `scripts/fix3_audit.py` (`Bước 0`): Quét BVHTree baseline phát hiện `237` cặp chồng nhau, `167` object cũ sót lại, `9/9` trụ đèn sai vị trí/cắt bậc, `Church_Door_SideL` bị `38` mặt chặn, vườn sau thiếu rào `131/179` điểm, viền vực thiếu chắn `622/1170` điểm, gờ đảo cây cao `2.56m`, quanh nhà thờ chỉ có `12` cụm hoa.
+  - `scripts/fix3_step1_church_doors.py` .. `fix3_step6_flowers.py`: Mở thông hoàn toàn `Church_Door_SideL` (`1.92m x 2.76m`) và đẩy bàn ghế tạo hành lang `>= 1.5m >= 0.8m` (cả `3` cửa `clear = True`); xóa `167` object thừa, dựng các dải thang liên tục `<= 0.16m/bậc` (`Fix3_Stair_EastSpiral / WestLoop / WestTombPath`), đặt `29` trụ đèn `Fix3_LanternPost_*` so le ngoài mép bậc (`0/29` phạm lối); hạ bồn đảo cây tròn `Fix3_TreeIsland_Curb` còn `0.40m` (`<= 0.45m`); khép kín rào `Zone_Backyard` (`27` nhịp, giữ đúng `1` cổng Tây-Nam `2.25m`, `0/179` khe hở); dựng `Fix3_BossRim_Tombs/LowWall` + `Fix3_CliffRim_Fence_*` khép `0/1170` khe hở viền `contour.json` kèm `applyContourEdgeGuard` trên web; tăng hoa vườn `580 -> 2,600` (`452` quanh nhà thờ, `875` vườn sau, `flowers_on_paths = 0`).
+  - `scripts/fix3_step7_web_export.py`, `web/src/walk.js`, `main.js`, `web/verify_phase.mjs`: Bổ sung cầu ngưỡng `Fix3_Court_FrontDoor` (`Z = 6.126..6.206m`), xuất lại web (`10,800` hoa, `15` mốc, `contour.json`); kiểm tra trên Chrome headless đạt `6/6` lượt qua 3 cửa (`blocked=0`), `2` tuyến dài liên tục (`blocked=0`) và `16/16` điểm thử đẩy ra mép vực an toàn.
+- **Quyết định kỹ thuật và lý do:** Chạy `fix3_audit.py` trước và sau từng bước dựa trên `BVHTree` và lấy mẫu `0.25m` để mọi lỗi hình học đều được chứng minh bằng số liệu định lượng; kết hợp rào vật lý + `applyContourEdgeGuard` trên web tạo lớp chống rơi kép.
+- **Chưa kiểm chứng / rủi ro:** Khi đi bộ thử lại quanh `Gate_Boss`, phát hiện tấm đá cuội của thang nhô cao sang phía bãi Boss, mép thảm hoa sau cổng bị cắt thẳng gắt, và Walk CPU chạy ~`7.1 FPS` vì raycast thẳng vào mesh nhiều mặt chưa có BVH.
+- **Cách kiểm tra đề xuất:** Xem bảng so sánh `Before vs After` trong `d:\GAME\Death RE\PROGRESS.md` hoặc chạy `node web/verify_phase.mjs fix3`.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Thực hiện Vòng sửa 4 xử lý `Gate_Boss`, tối ưu Walk CPU với `three-mesh-bvh` và thêm camera Bay tự do (`Free-Fly`).
+- **Commit:** (`d:\GAME\Death RE`) `b6ae4ce`..`8ec4654` (`fix3 step 0..7`)
+
+## [2026-11-17 17:21] SỬA LỚN – Vòng sửa 4 (FIX 4): Cắt nền Gate_Boss, 18 bia mép hoa, tối ưu Walk BVH (134.7ms -> 0.08ms) & Free-Fly
+- **Công cụ/model:** Gemini (Antigravity), Blender 5.2.2 LTS + `three-mesh-bvh` + Chrome Profiler (`F3`)
+- **Yêu cầu của tôi (tóm tắt):** Xóa phần nền gạch thừa trồi lên phía bãi Boss của `Gate_Boss` (giữ nguyên cổng), lấp 2 đường cắt thẳng thảm hoa bằng hàng bia mộ, đo profiler tìm nguyên nhân lag khi đi bộ trên Web rồi tối ưu, và bổ sung chế độ camera Bay tự do (`Free-Fly`).
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `scripts/fix4_step1_gate_cobble.py`: Dựng lại `Fix3_Stair_EastSpiral` khép nắp đúng mặt phẳng cổng `(2.40, -20.50)` xóa phần đá cuội trồi sang bãi Boss; chia mịn và uốn cosine cục bộ `Plateau_Terrain` sát ngưỡng (`2.38m` vs `2.43m`, `maxStepDz = 0.050m <= 0.10m`) bảo toàn nguyên vẹn `Fix2_GateBoss`.
+  - `scripts/fix4_step2_gate_tombs_flowers.py`: Gỡ rào cụt Bắc cổng; đặt `18` bia mộ raycast chân chìm `0.05m` (`Fix4_GateFlank_Tombs` + `Fix4_GateFlank_LowWall`) gối khít hai trụ cổng (`khe = 0m`) nối tới dãy tường kế tiếp; dựng lại `953` mảng hoa giảm mật độ dần trong `1.5m` sát mép để bỏ đường cắt thẳng.
+  - `web/src/profiler.js`, `walk.js`, `main.js`, `style.css` (Bước 3): Thêm Profiler (`F3` / `?perf=1`); đo `60s` trước sửa chỉ ra `Walk CPU = 134.708 ms/khung` (`~7.1 FPS`); cài `three-mesh-bvh` dựng `Walk_GroundBVHProxy` & `Walk_WallBVHProxy` (`firstHitOnly=true`), loại `InstancedMesh` hoa khỏi raycast, chỉ bắn `1` tia xuống + tối đa `4` tia ngang khi đang di chuyển, zero allocation mỗi khung, kẹp DOM HUD `<= 4 lần/giây` và tắt `autoUpdate` shadowMap -> **`Walk CPU` giảm còn `0.0809 ms/khung` (nhanh hơn `1,665x`), frame time `140.08 -> 10.18 ms` (`91–99 FPS`), draw calls `525 -> 115`**.
+  - `web/src/freefly.js` (Bước 4) & `verify_phase.mjs fix4` (Bước 5): Thêm chế độ `Bay tự do (F)` (`1..60 m/s`, `G` hạ xuống đất, `+ Keyframe`, `H` ẩn UI); kiểm tra `verify_phase.mjs fix4` qua `10/10` chu kỳ chuyển `Orbit ↔ Free-Fly ↔ Đi bộ` (`cleanListeners=true`), đi qua `Gate_Boss` 2 chiều (`blocked=0`, `maxStepDz=0.050m`).
+- **Quyết định kỹ thuật và lý do:** Đo đạc trước bằng Profiler `F3` thay vì đoán mò giúp xác định đúng nút thắt nằm ở CPU raycast lên lưới thô; tách 2 BVH proxy tĩnh riêng biệt giúp loại hoàn toàn chi phí kiểm tra va chạm lên 10,800 cụm hoa và giữ `~95 FPS`.
+- **Chưa kiểm chứng / rủi ro:** Khoảng hở sát bệ chân đế mở rộng của `Fix2_GateBoss` (`Z=2.6..3.0m`) còn `2.09m` (thân trụ `2.54m`) do giữ nguyên quy tắc không chỉnh hình học cổng.
+- **Cách kiểm tra đề xuất:** Mở Web viewer nhấn `F3` kiểm tra `Walk CPU`, nhấn `F` thử Free-Fly và đi xuyên `Gate_Boss` hai chiều.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Xóa nốt 2 cây và 1 trụ đèn trong bãi Boss theo ảnh phản hồi trước khi chuyển sang Unity.
+- **Commit:** (`d:\GAME\Death RE`) `06536f5` (`step 1`), `2a779b8` (`step 2`), `0972636` (`step 3`), `fcf3a40` (`step 4`), `fa8fc57` (`step 5`)
+
+## [2026-11-17 18:34] SỬA NHỎ – Dọn 2 cây & 1 trụ đèn trong bãi Boss rồi lấp lại bằng hoa (8,500 Boss / 11,100 tổng)
+- **Công cụ/model:** Gemini (Antigravity), Blender 5.2.2 LTS + Chrome CDP
+- **Yêu cầu của tôi (tóm tắt):** Xóa 2 cây và 1 cột đèn đứng giữa khu vực Boss theo ảnh đánh dấu rồi lấp hoa trắng phủ lại chỗ vừa xóa.
+- **AI đã làm (file tạo/sửa tại workspace `d:\GAME\Death RE`):**
+  - `scripts/fix4_step6_boss_cleanup.py`: Xóa idempotent `Slender_Tree_11`, `Slender_Tree_12` và `Fix3_LanternPost_07`, tăng `Boss_Flower_Emitter` từ `8,200 -> 8,500` cụm trên `977` patch mềm (`flank/gate overlap = 0`), đồng bộ `output/web/* -> web/public/models/*` (`11,100` cụm hoa tổng, `28` đèn `bad_count=0`).
+- **Quyết định kỹ thuật và lý do:** Chạy lại `rebuild_boss_flowers_soft_edge` sau khi gỡ cây/đèn để hoa phủ kín tự nhiên các khoảng trống mới mà vẫn né rìa `Gate_Boss` và dãy bia mộ.
+- **Chưa kiểm chứng / rủi ro:** Đã xác nhận `PASS` qua `verify_phase.mjs fix4` và ảnh đối chiếu `renders/fix4/freefly_boss_after.png` (`0` lỗi console); chưa đưa vào Unity tại bước này.
+- **Cách kiểm tra đề xuất:** Xem `d:\GAME\Death RE\renders\fix4\freefly_boss_after.png` hoặc bay tự do trên Web tại `(2.39, 9.28, 37.19)`.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Trả lời các câu hỏi kỹ thuật về xuất FBX/GLB, Collider, glTFast, sau đó đồng bộ map hoàn chỉnh sang dự án Unity `DeathRelapse3D`.
+- **Commit:** (`d:\GAME\Death RE`) `0077268` (`fix4 boss cleanup`)
+
+## [2026-11-17 22:05] SỬA LỚN – Tích hợp toàn bộ Map 3D GothicPlateau (`glTFast`), Collider, Rải hoa GPU, Tường tàng hình & Nâng cấp Boss bám địa hình
+- **Công cụ/model:** Gemini (Antigravity), MCP `unity` / `unity-death-relapse`
+- **Yêu cầu của tôi (tóm tắt):** Kiểm tra MCP Unity, xuất đầy đủ bản đồ 3D vào `Assets/Maps/`, cấu hình lên `SampleScene` chính, xử lý Collider chọn lọc, tường tàng hình chống rơi map, rải thảm hoa và đặt `Knight` + `Boss` vào bãi hoa lớn của Boss.
+- **AI đã làm (file tạo/sửa):**
+  - `Assets/Maps/GothicPlateau/`: Đưa vào `scene_final.glb`, `flower.glb`, `Invisible_Cliff_Wall.glb` (khép kín từ `contour.json`), `Data/flowers.json`, `Data/landmarks.json`, `Data/contour.json`.
+  - `Assets/Maps/GothicPlateau/Scripts/GothicFlowerInstancer.cs`: Script `[ExecuteAlways]` đọc `flowers.json`, dùng `Graphics.DrawMeshInstanced` vẽ `11,100` cụm hoa trắng ở cả Edit Mode và Play Mode, tự phản chiếu trục X (`mirrorX = true`) để khớp hệ tọa độ của `glTFast`.
+  - `Assets/Maps/GothicPlateau/Editor/GothicMapSetupEditor.cs`: Công cụ tự động (`Tools/Gothic Plateau/Setup Full Map In Active Scene`) dựng `/GothicPlateau_Map`, gắn `MeshCollider` cho địa hình/kiến trúc/tường/bia/cổng (bỏ qua 18 cột `Mist_Pillar` ngoài vực), gắn `CapsuleCollider` ở gốc thân `Slender_Tree_*`, tắt `MeshRenderer` trên `Invisible_Cliff_Wall`, tạo `14` Point Light ấm, ánh trăng `/Directional Light`, sương mù đêm & `Materials/GothicNightSkybox.mat`, tắt `/Plane`, đặt `/Knight` tại `(-13.00, 0.99, 24.00)`, `/Boss` tại `(-11.00, 0.55, 29.50)`, `/Main Camera` tại `(-13.00, 6.99, 16.91)`.
+  - `Assets/Scripts/Boss/BossAttackController.cs`: Thêm `snapToTerrain` (`TryFindGroundY`, `MoveBossOnTerrain`, `SnapBossToGround`) dùng `RaycastNonAlloc` bám cao độ dốc bãi hoa và `SphereCastNonAlloc` trượt tránh đá/tường/bia mộ; tăng `FloorYOffset` lên `0.06f` để vùng cảnh báo và vệt nứt đất không bị lún vào sườn dốc.
+  - `Assets/Scenes/SampleScene.unity`: Cập nhật toàn bộ map, ánh sáng, vị trí nhân vật và nối `bossAttackController` trên `/BattleManager`.
+- **Quyết định kỹ thuật và lý do:** Dùng `glTFast` import `.glb` thay cho FBX để giữ nguyên toàn bộ chất liệu PBR (`BaseColor` + `Normal Map` URP Lit). Hoa vẽ bằng `DrawMeshInstanced` thay vì tạo 11,100 GameObject nhằm giữ FPS cao. Không gắn `MeshCollider` cho tán lá/cột sương xa để tối ưu vật lý và tránh kẹt nhân vật. Vì `BossAttackController` trước đó cộng thẳng `transform.position` trên `Y=0`, bổ sung raycast + spherecast là bắt buộc để Boss không lún/trôi khi đuổi theo Player trên nền đất uốn lượn.
+- **Chưa kiểm chứng / rủi ro:** Chưa chơi trọn vẹn một ván đấu Thắng/Thua dài trên địa hình mới; file `scene_final.glb` nặng `~59 MB` vượt ngưỡng `50 MB` của `GEMINI.md` nên cần dùng Git LFS hoặc xem xét trước khi commit/push.
+- **Cách kiểm tra đề xuất:** Bấm Play trong Unity, chạy thử WASD + Space né đòn khắp bãi Boss, dẫn Boss qua các vùng dốc/đá để quan sát đòn chém, vùng cảnh báo và kiểm tra mép vực.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Kiểm tra gameplay thực tế trên map mới, tinh chỉnh lại độ sáng/vùng ranh giới nếu cần.
+- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận; lưu ý dung lượng `scene_final.glb` ~59 MB)
+
+## [2026-11-17 22:35] SỬA NHỎ – San mép bậc thang, bịt hở rào Nam (+2 cây, +300 hoa) & tường rễ Đại Thụ
+- **Công cụ/model:** Gemini (Antigravity), MCP `unity`
+- **Yêu cầu của tôi (tóm tắt):** Hạ/san vai cỏ mép bậc thang lối từ nhà thờ xuống Boss (`EastSpiral` & `WestLoop`) hết kẹt nhân vật; bịt đoạn rào Nam bị hở kèm thêm 2 cây và 300 hoa; thêm viền tàng hình chặn leo/kẹt vào rễ cây khổng lồ ở khu Boss; đồng bộ lại Unity và cập nhật `NguCanh.md`.
+- **AI đã làm (file tạo/sửa):**
+  - Đồng bộ lại `Assets/Maps/GothicPlateau/scene_final.glb`, `Data/flowers.json` (`11,400` cụm), `Invisible_Cliff_Wall.glb` và thêm mới `Invisible_GreatTree_Barrier.glb`.
+  - Cập nhật `GothicMapSetupEditor.cs` nạp `Invisible_GreatTree_Barrier` (tắt Renderer, bật `MeshCollider`), chạy lại setup & lưu `SampleScene.unity` (`115` MeshCollider + `23` CapsuleCollider gốc cây).
+- **Quyết định kỹ thuật và lý do:** Nâng vai cỏ thoải sát mép đá `EastSpiral`/`WestLoop` để giảm độ chênh cạnh xuống dưới ngưỡng bước của `CharacterController`; bịt nối rào Nam khít từ góc `(-15.21, -28.53)` đến `Gate_Boss` kèm `Slender_Tree_23/24` và `300` hoa `SouthPocket`; bao khối rễ `Great_Tree` bên khu Boss bằng tường tàng hình đặc kín ngăn leo lên khe rễ.
+- **Chưa kiểm chứng / rủi ro:** Đã test nhanh `CharacterController` trong Play Mode qua 3 điểm (vượt mép thang không kẹt, chặn rào Nam tại `Z=28.02`, chặn rễ Đại Thụ tại `(-9.68, 3.03, 9.23)`, `consoleErrors=0`); người dùng cần đi bộ tự do kiểm tra thêm cảm giác điều khiển.
+- **Cách kiểm tra đề xuất:** Chạy Play Mode, thử đi dọc hai bên bậc thang từ nhà thờ xuống `Gate_Boss`, kiểm tra góc rào Nam mới bịt và thử chạy sát vào rễ cây lớn phía Bắc bãi Boss.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Chơi thử nghiệm một trận hoàn chỉnh từ đầu đến lúc Thắng/Thua trên arena mới.
+- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)
+
+## [2026-11-17 22:55] SỬA NHỎ – Fix kẹt góc rào Nam & chuẩn hóa kích thước/mật độ hoa vùng Nam
+- **Công cụ/model:** Gemini (Antigravity), MCP `unity`
+- **Yêu cầu của tôi (tóm tắt):** Sửa chỗ đứng bị kẹt ở góc tường/đường cong phía Nam, giảm kích thước hoa mới bằng hoa khu Boss (`avg ~1.20`), rải đều vùng đất trống bên phải (ảnh 2 & 3).
+- **AI đã làm (file tạo/sửa):** Cập nhật [fix5_stairs_fence_trees.py] nâng lấp hố `0.98m–1.12m` dưới/sát mép `WestLoop` thành vai cỏ phẳng `2.24m–2.42m`; đặt `hair_length=1.0` & chuẩn scale `SouthPocket_Flower_Emitter` về `avg=1.183` (khớp Boss `1.224`); rải đều `450` cụm sang cả nửa Đông (`154` patch, tổng `11,550` hoa); đồng bộ `scene_final.glb`, `flowers.json`, `landmarks.json` vào `Assets/Maps/GothicPlateau/` và lưu `SampleScene.unity`.
+- **Quyết định kỹ thuật và lý do:** Dùng đúng `hair_length=1.0` tránh nhân `4x` scale mặc định của Hair particle mới tạo; lấp đồng bộ các đỉnh `Plateau_Terrain` dưới và sát `WestLoop` để triệt tiêu rãnh hẹp giữa đường, cột đèn `15` và hàng rào Nam.
+- **Chưa kiểm chứng / rủi ro:** Đã test `CharacterController` tại góc `(12.80, 2.42, 27.30)` đi qua lại mượt sang `+X/-X` và lên `WestLoop` (`isGrounded=True`, `consoleErrors=0`); chưa đi bộ toàn vòng bản đồ bằng tay sau sửa.
+- **Cách kiểm tra đề xuất:** Chạy Play Mode, điều khiển nhân vật đi sát mép rào Nam/cột đèn ở góc cũ và kiểm tra thảm hoa đều khắp vùng phía Nam.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Chơi thử nghiệm một ván đấu đầy đủ từ đầu tới Thắng/Thua trên arena.
+- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)

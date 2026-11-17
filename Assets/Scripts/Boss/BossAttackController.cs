@@ -134,8 +134,18 @@ public class BossAttackController : MonoBehaviour
 
     private readonly System.Collections.Generic.List<AttackStatEntry> attackStats = new System.Collections.Generic.List<AttackStatEntry>();
 
-    // Độ lệch Y nhỏ để tránh Z-fighting (nhấp nháy xuyên mặt sàn)
-    private const float FloorYOffset = 0.015f;
+    [Header("Terrain & Obstacle Navigation")]
+    [Tooltip("Tự động bám cao độ địa hình (raycast xuống sàn) và né chướng ngại vật thay vì đi xuyên địa hình Y=0")]
+    [SerializeField] private bool snapToTerrain = true;
+    [SerializeField] private float groundCheckUpOffset = 2.0f;
+    [SerializeField] private float groundCheckDistance = 8.0f;
+    [SerializeField] private float bossObstacleRadius = 0.55f;
+
+    private readonly RaycastHit[] _bossGroundHits = new RaycastHit[16];
+    private readonly RaycastHit[] _bossSweepHits = new RaycastHit[16];
+
+    // Độ lệch Y nhỏ để tránh Z-fighting (nhấp nháy xuyên mặt sàn 3D)
+    private const float FloorYOffset = 0.06f;
     private const float FillHeightBias = 0.002f;
     private const float TelegraphSyncToleranceSeconds = 0.05f;
 
@@ -189,6 +199,14 @@ public class BossAttackController : MonoBehaviour
         HideGroundCrack();
     }
 
+    private void Start()
+    {
+        if (snapToTerrain)
+        {
+            SnapBossToGround(true);
+        }
+    }
+
     private void Update()
     {
         if (bossHealth != null && bossHealth.IsDead)
@@ -237,18 +255,141 @@ public class BossAttackController : MonoBehaviour
         if (distanceToPlayer > attackRange)
         {
             Vector3 moveDirection = toPlayerXZ.normalized;
-            transform.position += moveDirection * (moveSpeed * Time.deltaTime);
+            float stepDist = moveSpeed * Time.deltaTime;
+            if (snapToTerrain)
+            {
+                MoveBossOnTerrain(moveDirection, stepDist);
+            }
+            else
+            {
+                transform.position += moveDirection * stepDist;
+            }
             UpdateWalkAnimator(moveSpeed);
         }
         else
         {
             // 3. Khi đã vào tầm đánh: dừng đi bộ và kiểm tra thời gian hồi chiêu để ra đòn
             UpdateWalkAnimator(0f);
+            if (snapToTerrain)
+            {
+                SnapBossToGround(false);
+            }
 
             if (Time.time >= lastAttackEndTime + attackCooldown)
             {
                 TriggerAttack();
             }
+        }
+    }
+
+    private bool IsSelfOrPlayerCollider(Collider col)
+    {
+        if (col == null) return true;
+        Transform r = col.transform.root;
+        if (r == transform.root) return true;
+        if (player != null && r == player.root) return true;
+        return false;
+    }
+
+    private bool TryFindGroundY(Vector3 refPos, out float bestY)
+    {
+        bestY = refPos.y;
+        Vector3 origin = new Vector3(refPos.x, refPos.y + groundCheckUpOffset, refPos.z);
+        int count = Physics.RaycastNonAlloc(origin, Vector3.down, _bossGroundHits, groundCheckDistance, ~0, QueryTriggerInteraction.Ignore);
+        bool found = false;
+        float highestValid = float.NegativeInfinity;
+        float maxAllowedY = refPos.y + 1.5f;
+
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit h = _bossGroundHits[i];
+            if (IsSelfOrPlayerCollider(h.collider)) continue;
+            if (h.normal.y < 0.55f) continue;
+            if (h.point.y > maxAllowedY) continue;
+            if (h.point.y > highestValid)
+            {
+                highestValid = h.point.y;
+                found = true;
+            }
+        }
+
+        if (found)
+        {
+            bestY = highestValid;
+        }
+        return found;
+    }
+
+    private bool CheckHorizontalBlocked(Vector3 originPos, Vector3 dirXZ, float dist, out Vector3 hitNormalXZ)
+    {
+        hitNormalXZ = Vector3.zero;
+        Vector3 sphereCenter = originPos + Vector3.up * 0.95f;
+        int count = Physics.SphereCastNonAlloc(sphereCenter, bossObstacleRadius, dirXZ, _bossSweepHits, dist, ~0, QueryTriggerInteraction.Ignore);
+        float nearestDist = float.MaxValue;
+        bool blocked = false;
+
+        for (int i = 0; i < count; i++)
+        {
+            RaycastHit h = _bossSweepHits[i];
+            if (h.distance <= 0.0001f) continue;
+            if (IsSelfOrPlayerCollider(h.collider)) continue;
+            // Bỏ qua mặt đất thoai thoải (slope đi lên được)
+            if (h.normal.y >= 0.55f) continue;
+
+            if (h.distance < nearestDist)
+            {
+                nearestDist = h.distance;
+                hitNormalXZ = new Vector3(h.normal.x, 0f, h.normal.z).normalized;
+                blocked = true;
+            }
+        }
+        return blocked;
+    }
+
+    private void MoveBossOnTerrain(Vector3 moveDirXZ, float stepDist)
+    {
+        if (stepDist <= 0.00001f) return;
+
+        Vector3 curPos = transform.position;
+        Vector3 desiredDir = moveDirXZ;
+
+        if (CheckHorizontalBlocked(curPos, desiredDir, stepDist + 0.15f, out Vector3 n1))
+        {
+            Vector3 slidDir = Vector3.ProjectOnPlane(desiredDir, n1);
+            slidDir.y = 0f;
+            if (slidDir.sqrMagnitude > 0.01f)
+            {
+                slidDir.Normalize();
+                if (!CheckHorizontalBlocked(curPos, slidDir, stepDist + 0.12f, out _))
+                {
+                    desiredDir = slidDir;
+                }
+                else
+                {
+                    desiredDir = Vector3.zero;
+                }
+            }
+            else
+            {
+                desiredDir = Vector3.zero;
+            }
+        }
+
+        Vector3 nextPos = curPos + desiredDir * stepDist;
+        if (TryFindGroundY(nextPos, out float groundY))
+        {
+            nextPos.y = Mathf.MoveTowards(curPos.y, groundY, 14f * Time.deltaTime);
+        }
+        transform.position = nextPos;
+    }
+
+    private void SnapBossToGround(bool immediate)
+    {
+        Vector3 pos = transform.position;
+        if (TryFindGroundY(pos, out float groundY))
+        {
+            pos.y = immediate ? groundY : Mathf.MoveTowards(pos.y, groundY, 14f * Time.deltaTime);
+            transform.position = pos;
         }
     }
 

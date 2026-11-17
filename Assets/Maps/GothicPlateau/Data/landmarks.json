@@ -1,0 +1,620 @@
+{
+  "coordinateSystem": "glTF_Y_up",
+  "landmarks": {
+    "Zone_Garden": {
+      "position": [
+        -16.0,
+        2.8523,
+        16.0
+      ]
+    },
+    "Zone_Church": {
+      "position": [
+        -7.5,
+        6.0,
+        -11.5
+      ]
+    },
+    "Zone_Boss": {
+      "position": [
+        21.0,
+        2.3648,
+        9.0
+      ]
+    },
+    "Tree_Base": {
+      "position": [
+        6.8,
+        5.85,
+        -9.5
+      ]
+    },
+    "Zone_Backyard": {
+      "position": [
+        -5.5,
+        5.8,
+        -29.5
+      ]
+    },
+    "Gate_Boss": {
+      "position": [
+        2.4,
+        2.35,
+        20.5
+      ]
+    },
+    "Front_Door": {
+      "position": [
+        -11.3741,
+        6.198,
+        -3.3862
+      ]
+    },
+    "Church_Door_SideL": {
+      "position": [
+        -15.2733,
+        6.198,
+        -8.3071
+      ]
+    },
+    "Church_SideDoor_3": {
+      "position": [
+        -13.2608,
+        6.198,
+        -15.8181
+      ]
+    },
+    "Church_Interior_Front": {
+      "position": [
+        -10.7529,
+        6.3,
+        -5.7044
+      ]
+    },
+    "Church_Interior_Altar": {
+      "position": [
+        -7.7092,
+        6.66,
+        -17.0637
+      ]
+    },
+    "Tombstone_Terraces": {
+      "position": [
+        -21.8,
+        4.35,
+        4.0
+      ]
+    },
+    "SpiralStairs_Bottom": {
+      "position": [
+        -10.2,
+        2.15,
+        26.4
+      ]
+    },
+    "SpiralStairs_Top": {
+      "position": [
+        -12.1,
+        6.06,
+        -0.7
+      ]
+    },
+    "TreeIsland": {
+      "position": [
+        -10.5,
+        3.88,
+        11.5
+      ]
+    }
+  },
+  "cameras": [
+    {
+      "name": "overview",
+      "label": "Toan canh cao nguyen Gothic",
+      "position": [
+        -46.0,
+        32.0,
+        44.0
+      ],
+      "target": [
+        1.0,
+        4.5,
+        -2.0
+      ],
+      "fov": 42.0
+    },
+    {
+      "name": "garden_entrance",
+      "label": "Thang xoan & Khu vuon co",
+      "position": [
+        -24.0,
+        12.5,
+        32.0
+      ],
+      "target": [
+        -11.0,
+        4.2,
+        10.5
+      ],
+      "fov": 45.0
+    },
+    {
+      "name": "tomb_terraces",
+      "label": "Hang bia mo phia Tay",
+      "position": [
+        -32.0,
+        10.5,
+        8.0
+      ],
+      "target": [
+        -22.0,
+        4.8,
+        1.5
+      ],
+      "fov": 46.0
+    },
+    {
+      "name": "church_door",
+      "label": "Truoc cong nha tho mo",
+      "position": [
+        -13.5,
+        9.2,
+        3.5
+      ],
+      "target": [
+        -9.2,
+        8.6,
+        -11.5
+      ],
+      "fov": 48.0
+    },
+    {
+      "name": "church_interior",
+      "label": "Ben trong nha tho",
+      "position": [
+        -8.9224,
+        8.64,
+        -14.1587
+      ],
+      "target": [
+        -11.1256,
+        8.16,
+        -4.3135
+      ],
+      "fov": 54.0
+    },
+    {
+      "name": "backyard",
+      "label": "Vuon nho sau nha tho",
+      "position": [
+        -14.5,
+        16.5,
+        -22.0
+      ],
+      "target": [
+        -5.5,
+        5.8,
+        -29.5
+      ],
+      "fov": 46.0
+    },
+    {
+      "name": "boss_arena",
+      "label": "Bai Boss & tham hoa trang",
+      "position": [
+        34.0,
+        10.5,
+        24.0
+      ],
+      "target": [
+        18.0,
+        2.8,
+        8.0
+      ],
+      "fov": 44.0
+    },
+    {
+      "name": "great_tree",
+      "label": "Dai thu co thu moc reu",
+      "position": [
+        -6.0,
+        9.0,
+        6.0
+      ],
+      "target": [
+        6.8,
+        18.0,
+        -9.5
+      ],
+      "fov": 48.0
+    }
+  ],
+  "lights": [
+    {
+      "name": "WarmLight_Porch",
+      "position": [
+        -8.2411,
+        8.1509,
+        -3.2
+      ],
+      "color": "#ff8c2b",
+      "intensity": 3.8,
+      "distance": 22.0
+    },
+    {
+      "name": "WarmLight_BossGate",
+      "position": [
+        -0.6,
+        3.3524,
+        23.0
+      ],
+      "color": "#ff8c2b",
+      "intensity": 3.6,
+      "distance": 22.0
+    },
+    {
+      "name": "WarmLight_Stair0",
+      "position": [
+        -8.4545,
+        2.9604,
+        26.5
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.8,
+      "distance": 16.0
+    },
+    {
+      "name": "WarmLight_Stair1",
+      "position": [
+        -8.4784,
+        5.3517,
+        14.2
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.8,
+      "distance": 16.0
+    },
+    {
+      "name": "WarmLight_Stair2",
+      "position": [
+        -8.6106,
+        7.1277,
+        2.5
+      ],
+      "color": "#ff8c2b",
+      "intensity": 3.0,
+      "distance": 16.0
+    },
+    {
+      "name": "Fix2_SideDoor3_Lamp",
+      "position": [
+        -13.9562,
+        8.64,
+        -16.0045
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.8,
+      "distance": 16.0
+    },
+    {
+      "name": "Fix2_ChurchIntLight_00",
+      "position": [
+        -6.7329,
+        7.68,
+        -9.3481
+      ],
+      "color": "#ff8c2b",
+      "intensity": 3.0,
+      "distance": 18.0
+    },
+    {
+      "name": "Fix2_ChurchIntLight_03",
+      "position": [
+        -7.4078,
+        8.22,
+        -7.2928
+      ],
+      "color": "#ff8c2b",
+      "intensity": 3.2,
+      "distance": 18.0
+    },
+    {
+      "name": "Fix2_ChurchIntLight_04",
+      "position": [
+        -7.5384,
+        9.06,
+        -17.7012
+      ],
+      "color": "#ff8c2b",
+      "intensity": 3.2,
+      "distance": 18.0
+    },
+    {
+      "name": "Fix3_LampLight_00",
+      "position": [
+        -10.3586,
+        6.6752,
+        2.2977
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.7,
+      "distance": 16.0
+    },
+    {
+      "name": "Fix3_LampLight_02",
+      "position": [
+        -4.0289,
+        5.0156,
+        5.5119
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.7,
+      "distance": 16.0
+    },
+    {
+      "name": "Fix3_LampLight_04",
+      "position": [
+        -2.3337,
+        3.97,
+        13.1652
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.7,
+      "distance": 16.0
+    },
+    {
+      "name": "Fix3_LampLight_06",
+      "position": [
+        -0.857,
+        2.9841,
+        18.4352
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.7,
+      "distance": 16.0
+    },
+    {
+      "name": "Fix3_LampLight_08",
+      "position": [
+        -15.808,
+        5.9188,
+        1.5006
+      ],
+      "color": "#ff8c2b",
+      "intensity": 2.7,
+      "distance": 16.0
+    }
+  ],
+  "walkWaypoints": {
+    "stair_bottom": [
+      -10.2,
+      2.2,
+      26.4
+    ],
+    "stair_sw": [
+      -17.2,
+      3.4,
+      16.8
+    ],
+    "stair_nw": [
+      -16.2,
+      4.7,
+      5.8
+    ],
+    "stair_top": [
+      -13.2,
+      6.0,
+      1.1
+    ],
+    "porch_junction": [
+      -12.1,
+      6.1,
+      -0.7
+    ],
+    "porch_front": [
+      -11.6,
+      6.16,
+      -2.55
+    ],
+    "east_top": [
+      -9.4,
+      6.04,
+      0.2
+    ],
+    "east_mid1": [
+      -7.0,
+      5.14,
+      3.2
+    ],
+    "east_mid2": [
+      -5.4,
+      4.14,
+      7.2
+    ],
+    "east_mid3": [
+      -4.4,
+      3.34,
+      11.5
+    ],
+    "east_mid4": [
+      -4.0,
+      3.34,
+      14.2
+    ],
+    "east_mid5": [
+      -3.2,
+      2.69,
+      17.5
+    ],
+    "gate_boss_outside": [
+      -2.2,
+      2.34,
+      20.4
+    ],
+    "gate_boss_through": [
+      2.4,
+      2.39,
+      20.5
+    ],
+    "gate_boss_meadow": [
+      7.2,
+      2.03,
+      19.2
+    ],
+    "boss_entry": [
+      7.7,
+      1.95,
+      19.05
+    ],
+    "boss_center": [
+      21.0,
+      2.4,
+      9.0
+    ],
+    "front_outside": [
+      -11.9331,
+      6.3,
+      -1.2998
+    ],
+    "front_threshold": [
+      -11.3741,
+      6.3,
+      -3.3862
+    ],
+    "front_inside": [
+      -10.6287,
+      6.336,
+      -6.1681
+    ],
+    "nave_mid": [
+      -9.5106,
+      6.336,
+      -10.3409
+    ],
+    "nave_rear_sd3": [
+      -8.3925,
+      6.336,
+      -14.5137
+    ],
+    "altar_look": [
+      -7.7092,
+      7.68,
+      -17.0637
+    ],
+    "sidel_path": [
+      -18.0,
+      5.58,
+      -8.7
+    ],
+    "sidel_court": [
+      -16.7,
+      6.18,
+      -8.68
+    ],
+    "sidel_outside": [
+      -17.2438,
+      6.264,
+      -8.8351
+    ],
+    "sidel_threshold": [
+      -15.2733,
+      6.288,
+      -8.3071
+    ],
+    "sidel_inside": [
+      -12.4915,
+      6.336,
+      -7.5617
+    ],
+    "sidedoor3_path": [
+      -15.2,
+      5.98,
+      -16.05
+    ],
+    "sidedoor3_court": [
+      -14.65,
+      6.18,
+      -16.18
+    ],
+    "sidedoor3_outside": [
+      -14.9994,
+      6.264,
+      -16.284
+    ],
+    "sidedoor3_threshold": [
+      -13.2608,
+      6.288,
+      -15.8181
+    ],
+    "sidedoor3_inside": [
+      -10.4789,
+      6.336,
+      -15.0727
+    ],
+    "west_tomb_join": [
+      -18.15,
+      3.42,
+      15.45
+    ],
+    "west_tomb_b1": [
+      -19.5,
+      3.49,
+      14.0
+    ],
+    "west_tomb_b2": [
+      -21.2,
+      3.89,
+      9.2
+    ],
+    "west_tomb_b3": [
+      -21.8,
+      4.34,
+      4.0
+    ],
+    "west_tomb_b4": [
+      -21.4,
+      4.79,
+      -1.5
+    ],
+    "west_tomb_b5": [
+      -19.8,
+      5.29,
+      -7.0
+    ],
+    "west_tomb_b6": [
+      -18.2,
+      5.79,
+      -11.8
+    ],
+    "west_tomb_sd3_join": [
+      -16.4,
+      5.99,
+      -15.8
+    ],
+    "west_path_north": [
+      -14.8,
+      5.94,
+      -20.4
+    ],
+    "west_path_corner": [
+      -11.8,
+      5.89,
+      -23.8
+    ],
+    "backyard_entry": [
+      -9.7,
+      5.84,
+      -25.3
+    ],
+    "backyard_ring_s": [
+      -5.5,
+      5.85,
+      -24.3
+    ],
+    "backyard_center": [
+      -5.5,
+      5.8,
+      -29.5
+    ]
+  }
+}
