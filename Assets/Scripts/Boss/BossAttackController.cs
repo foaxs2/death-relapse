@@ -114,13 +114,6 @@ public class BossAttackController : MonoBehaviour
     private TelegraphShapeType lockedShape;
     private float lockedBoxWidth;
 
-    // Cache Mesh quạt đơn vị (bán kính = 1m) dùng chung cho cả Fill và Outline
-    private Mesh sharedSectorMesh;
-    private float cachedMeshArcAngle = -1f;
-
-    // Mesh chữ nhật đơn vị: rộng 1m (x từ -0.5..0.5), dài 1m (z từ 0..1); scale x = boxWidth, z = chiều dài
-    private Mesh sharedBoxMesh;
-
     // Thống kê từng loại đòn trong trận (reset khi Replay)
     [Serializable]
     public class AttackStatEntry
@@ -144,10 +137,15 @@ public class BossAttackController : MonoBehaviour
     private readonly RaycastHit[] _bossGroundHits = new RaycastHit[16];
     private readonly RaycastHit[] _bossSweepHits = new RaycastHit[16];
 
-    // Độ lệch Y nhỏ để tránh Z-fighting (nhấp nháy xuyên mặt sàn 3D)
-    private const float FloorYOffset = 0.06f;
-    private const float FillHeightBias = 0.002f;
+    // Độ lệch Y để tránh Z-fighting và nổi trên thảm hoa/cỏ địa hình 3D
+    private const float FloorYOffset = 0.08f;
+    private const float FillHeightBias = 0.004f;
     private const float TelegraphSyncToleranceSeconds = 0.05f;
+
+    // Các Mesh dynamic tự động uốn lượn bám sát địa hình mấp mô (chống chìm dưới đất / bay lơ lửng)
+    private Mesh conformedOutlineMesh;
+    private Mesh conformedFillMesh;
+    private Mesh conformedCrackMesh;
 
     public bool IsAttacking => isAttacking;
     public bool ShowTelegraphVisuals
@@ -433,13 +431,17 @@ public class BossAttackController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (sharedSectorMesh != null)
+        if (conformedOutlineMesh != null)
         {
-            Destroy(sharedSectorMesh);
+            Destroy(conformedOutlineMesh);
         }
-        if (sharedBoxMesh != null)
+        if (conformedFillMesh != null)
         {
-            Destroy(sharedBoxMesh);
+            Destroy(conformedFillMesh);
+        }
+        if (conformedCrackMesh != null)
+        {
+            Destroy(conformedCrackMesh);
         }
     }
 
@@ -569,27 +571,30 @@ public class BossAttackController : MonoBehaviour
         attackTriggerRealtime = Time.realtimeSinceStartup;
         UpdateWalkAnimator(0f);
 
-        // 3. Chuẩn bị Mesh hình quạt đơn vị và hiện vùng quạt cảnh báo (chỉ hiện khi showTelegraphVisuals == true)
+        // 3. Chuẩn bị Mesh bám địa hình và hiện vùng cảnh báo (chỉ hiện khi showTelegraphVisuals == true)
         if (showTelegraphVisuals)
         {
-            EnsureTelegraphMesh();
-            Vector3 fullScale = GetTelegraphScale(1f);
-
-            Quaternion attackRotation = Quaternion.LookRotation(lockedForward, Vector3.up);
+            EnsureConformedMeshes();
 
             if (telegraphOutlineMesh != null)
             {
-                telegraphOutlineMesh.transform.position = lockedCenter;
-                telegraphOutlineMesh.transform.rotation = attackRotation;
-                telegraphOutlineMesh.transform.localScale = fullScale;
+                telegraphOutlineMesh.sharedMesh = conformedOutlineMesh;
+                telegraphOutlineMesh.transform.localScale = Vector3.one;
+                if (lockedShape == TelegraphShapeType.BoxLine)
+                    BuildConformedBoxMesh(telegraphOutlineMesh, conformedOutlineMesh, lockedCenter, lockedForward, lockedRadius, lockedBoxWidth, FloorYOffset);
+                else
+                    BuildConformedSectorMesh(telegraphOutlineMesh, conformedOutlineMesh, lockedCenter, lockedForward, lockedRadius, lockedArcAngle, FloorYOffset);
                 telegraphOutlineMesh.gameObject.SetActive(true);
             }
 
             if (telegraphFillMesh != null)
             {
-                telegraphFillMesh.transform.position = lockedCenter + Vector3.up * FillHeightBias;
-                telegraphFillMesh.transform.rotation = attackRotation;
-                telegraphFillMesh.transform.localScale = GetTelegraphScale(0f);
+                telegraphFillMesh.sharedMesh = conformedFillMesh;
+                telegraphFillMesh.transform.localScale = Vector3.one;
+                if (lockedShape == TelegraphShapeType.BoxLine)
+                    BuildConformedBoxMesh(telegraphFillMesh, conformedFillMesh, lockedCenter, lockedForward, 0.05f, lockedBoxWidth, FloorYOffset + FillHeightBias);
+                else
+                    BuildConformedSectorMesh(telegraphFillMesh, conformedFillMesh, lockedCenter, lockedForward, 0.05f, lockedArcAngle, FloorYOffset + FillHeightBias);
                 telegraphFillMesh.gameObject.SetActive(true);
             }
         }
@@ -612,7 +617,11 @@ public class BossAttackController : MonoBehaviour
 
             if (showTelegraphVisuals && telegraphFillMesh != null)
             {
-                telegraphFillMesh.transform.localScale = GetTelegraphScale(progress);
+                float curProgressDist = Mathf.Max(0.05f, lockedRadius * progress);
+                if (lockedShape == TelegraphShapeType.BoxLine)
+                    BuildConformedBoxMesh(telegraphFillMesh, conformedFillMesh, lockedCenter, lockedForward, curProgressDist, lockedBoxWidth, FloorYOffset + FillHeightBias);
+                else
+                    BuildConformedSectorMesh(telegraphFillMesh, conformedFillMesh, lockedCenter, lockedForward, curProgressDist, lockedArcAngle, FloorYOffset + FillHeightBias);
             }
 
             yield return null;
@@ -623,7 +632,10 @@ public class BossAttackController : MonoBehaviour
         {
             if (showTelegraphVisuals && telegraphFillMesh != null)
             {
-                telegraphFillMesh.transform.localScale = GetTelegraphScale(1f);
+                if (lockedShape == TelegraphShapeType.BoxLine)
+                    BuildConformedBoxMesh(telegraphFillMesh, conformedFillMesh, lockedCenter, lockedForward, lockedRadius, lockedBoxWidth, FloorYOffset + FillHeightBias);
+                else
+                    BuildConformedSectorMesh(telegraphFillMesh, conformedFillMesh, lockedCenter, lockedForward, lockedRadius, lockedArcAngle, FloorYOffset + FillHeightBias);
             }
 
             float maxWaitForOpen = lockedDuration + Mathf.Max(0f, hitWindowTimeoutSeconds);
@@ -727,7 +739,7 @@ public class BossAttackController : MonoBehaviour
         if (Mathf.Abs(diff) > TelegraphSyncToleranceSeconds)
         {
             Debug.LogWarning($"[BossAttackController] Thời gian gồng thực tế ({actualWindupSeconds:F3}s) lệch quá {TelegraphSyncToleranceSeconds:F2}s " +
-                             $"so với telegraphDuration ({lockedDuration:F3}s). Hãy điều chỉnh Speed của state '{attackStateName}' trong Animator!");
+                             $"so với telegraphDuration ({lockedDuration:F3}s). Hãy điều chỉnh Speed của state '{GetActiveAttackStateName()}' trong Animator!");
         }
 
         // Ẩn vùng cảnh báo NGAY khi kiếm bắt đầu có sát thương
@@ -883,77 +895,84 @@ public class BossAttackController : MonoBehaviour
     }
 
     /// <summary>
-    /// Tạo hoặc cập nhật Mesh quạt đơn vị (bán kính 1m, 3 độ/phân đoạn, triangle fan).
+    /// Khởi tạo các Mesh dynamic uốn lượn bám địa hình.
     /// </summary>
-    private void EnsureSectorMesh(float arcAngle)
+    private void EnsureConformedMeshes()
     {
-        if (sharedSectorMesh != null && Mathf.Approximately(cachedMeshArcAngle, arcAngle))
+        if (conformedOutlineMesh == null)
         {
-            return;
+            conformedOutlineMesh = new Mesh { name = "ConformedOutlineMesh" };
+            conformedOutlineMesh.MarkDynamic();
         }
-
-        if (sharedSectorMesh == null)
+        if (conformedFillMesh == null)
         {
-            sharedSectorMesh = new Mesh();
-            sharedSectorMesh.name = "SectorUnitMesh";
+            conformedFillMesh = new Mesh { name = "ConformedFillMesh" };
+            conformedFillMesh.MarkDynamic();
         }
-
-        cachedMeshArcAngle = arcAngle;
-        BuildSectorMesh(sharedSectorMesh, arcAngle, 3f);
-
-        if (telegraphFillMesh != null)
+        if (conformedCrackMesh == null)
         {
-            telegraphFillMesh.sharedMesh = sharedSectorMesh;
-        }
-        if (telegraphOutlineMesh != null)
-        {
-            telegraphOutlineMesh.sharedMesh = sharedSectorMesh;
+            conformedCrackMesh = new Mesh { name = "ConformedCrackMesh" };
+            conformedCrackMesh.MarkDynamic();
         }
     }
 
     /// <summary>
-    /// Dựng Mesh hình quạt dạng Triangle Fan:
-    /// Tâm ở gốc (0,0,0), đối xứng qua trục +Z (hướng mặt phẳng), ngửa mặt lên trục +Y.
+    /// Dựng lưới hình chữ nhật uốn lượn bám sát địa hình 3D (dùng cho cả BoxLine và GroundShockwave).
+    /// Từng đốt dọc theo chiều dài đều raycast tìm mặt đất thật để không bao giờ bị chìm dưới gò đất hay bay lơ lửng.
     /// </summary>
-    private void BuildSectorMesh(Mesh mesh, float arcAngle, float degreesPerSegment)
+    private void BuildConformedBoxMesh(MeshFilter targetFilter, Mesh mesh, Vector3 center, Vector3 forward, float length, float width, float heightOffset, int segments = 24)
     {
+        if (targetFilter == null || mesh == null) return;
         mesh.Clear();
+        if (length <= 0.05f || width <= 0.05f) return;
 
-        int segments = Mathf.Max(1, Mathf.CeilToInt(arcAngle / degreesPerSegment));
-        float stepAngle = arcAngle / segments;
-        float startAngle = -arcAngle * 0.5f;
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+        float halfWidth = width * 0.5f;
 
-        Vector3[] vertices = new Vector3[segments + 2];
-        Vector3[] normals = new Vector3[segments + 2];
-        Vector2[] uvs = new Vector2[segments + 2];
-        int[] triangles = new int[segments * 3];
+        int vertCount = (segments + 1) * 2;
+        Vector3[] vertices = new Vector3[vertCount];
+        Vector3[] normals = new Vector3[vertCount];
+        Vector2[] uvs = new Vector2[vertCount];
+        int[] triangles = new int[segments * 6];
 
-        // Đỉnh 0 là gốc tâm quạt
-        vertices[0] = Vector3.zero;
-        normals[0] = Vector3.up;
-        uvs[0] = new Vector2(0.5f, 0.5f);
+        Transform tr = targetFilter.transform;
 
-        // Các đỉnh dọc theo viền cung quạt bán kính 1m
         for (int i = 0; i <= segments; i++)
         {
-            float currentDeg = startAngle + i * stepAngle;
-            float rad = currentDeg * Mathf.Deg2Rad;
+            float t = (float)i / segments;
+            float dist = length * t;
+            Vector3 spine = center + forward * dist;
 
-            // X = sin, Z = cos để góc 0 độ trùng hướng +Z
-            float x = Mathf.Sin(rad);
-            float z = Mathf.Cos(rad);
+            Vector3 leftWorld = spine - right * halfWidth;
+            Vector3 rightWorld = spine + right * halfWidth;
 
-            vertices[i + 1] = new Vector3(x, 0f, z);
-            normals[i + 1] = Vector3.up;
-            uvs[i + 1] = new Vector2(x * 0.5f + 0.5f, z * 0.5f + 0.5f);
-        }
+            float groundYLeft = TryFindGroundY(leftWorld, out float yL) ? yL : spine.y;
+            float groundYRight = TryFindGroundY(rightWorld, out float yR) ? yR : spine.y;
 
-        // Tạo các tam giác fan: (0, i+1, i+2) cho pháp tuyến hướng lên trên (+Y)
-        for (int i = 0; i < segments; i++)
-        {
-            triangles[i * 3 + 0] = 0;
-            triangles[i * 3 + 1] = i + 1;
-            triangles[i * 3 + 2] = i + 2;
+            leftWorld.y = groundYLeft + heightOffset;
+            rightWorld.y = groundYRight + heightOffset;
+
+            int idx = i * 2;
+            vertices[idx] = tr.InverseTransformPoint(leftWorld);
+            vertices[idx + 1] = tr.InverseTransformPoint(rightWorld);
+
+            normals[idx] = Vector3.up;
+            normals[idx + 1] = Vector3.up;
+
+            uvs[idx] = new Vector2(0f, t);
+            uvs[idx + 1] = new Vector2(1f, t);
+
+            if (i < segments)
+            {
+                int tri = i * 6;
+                triangles[tri + 0] = idx;
+                triangles[tri + 1] = idx + 2;
+                triangles[tri + 2] = idx + 1;
+
+                triangles[tri + 3] = idx + 1;
+                triangles[tri + 4] = idx + 2;
+                triangles[tri + 5] = idx + 3;
+            }
         }
 
         mesh.vertices = vertices;
@@ -964,57 +983,72 @@ public class BossAttackController : MonoBehaviour
     }
 
     /// <summary>
-    /// Gán Mesh phù hợp hình dạng đòn hiện tại (quạt hoặc chữ nhật) cho Fill và Outline.
-    /// Gán lại mỗi đòn vì pool có thể xen kẽ hai hình dạng.
+    /// Dựng lưới hình quạt uốn lượn bám sát địa hình 3D (chia theo vành đai và góc, mỗi đỉnh đều raycast tìm mặt đất).
     /// </summary>
-    private void EnsureTelegraphMesh()
+    private void BuildConformedSectorMesh(MeshFilter targetFilter, Mesh mesh, Vector3 center, Vector3 forward, float radius, float arcAngle, float heightOffset, int segments = 16, int rings = 5)
     {
-        Mesh meshToUse;
-        if (lockedShape == TelegraphShapeType.BoxLine)
-        {
-            if (sharedBoxMesh == null)
-            {
-                sharedBoxMesh = new Mesh { name = "BoxUnitMesh" };
-                BuildBoxMesh(sharedBoxMesh);
-            }
-            meshToUse = sharedBoxMesh;
-        }
-        else
-        {
-            EnsureSectorMesh(lockedArcAngle);
-            meshToUse = sharedSectorMesh;
-        }
-
-        if (telegraphFillMesh != null) telegraphFillMesh.sharedMesh = meshToUse;
-        if (telegraphOutlineMesh != null) telegraphOutlineMesh.sharedMesh = meshToUse;
-    }
-
-    /// <summary>
-    /// Scale của vùng cảnh báo theo tiến độ điền (0..1). Quạt: scale đều XZ theo bán kính.
-    /// Chữ nhật: bề rộng cố định, chỉ chiều dài (trục Z) tăng dần từ Boss.
-    /// </summary>
-    private Vector3 GetTelegraphScale(float progress)
-    {
-        if (lockedShape == TelegraphShapeType.BoxLine)
-        {
-            return new Vector3(lockedBoxWidth, 1f, lockedRadius * progress);
-        }
-        float r = lockedRadius * progress;
-        return new Vector3(r, 1f, r);
-    }
-
-    /// <summary>Dựng hình chữ nhật phẳng đơn vị: x từ -0.5..0.5, z từ 0..1, ngửa mặt lên +Y.</summary>
-    private void BuildBoxMesh(Mesh mesh)
-    {
+        if (targetFilter == null || mesh == null) return;
         mesh.Clear();
-        mesh.vertices = new[]
+        if (radius <= 0.05f || arcAngle <= 1f) return;
+
+        int vertCount = (rings + 1) * (segments + 1);
+        Vector3[] vertices = new Vector3[vertCount];
+        Vector3[] normals = new Vector3[vertCount];
+        Vector2[] uvs = new Vector2[vertCount];
+        int[] triangles = new int[rings * segments * 6];
+
+        float stepAngle = arcAngle / segments;
+        float startAngle = -arcAngle * 0.5f;
+        Transform tr = targetFilter.transform;
+
+        int vertIdx = 0;
+        for (int r = 0; r <= rings; r++)
         {
-            new Vector3(-0.5f, 0f, 0f), new Vector3(-0.5f, 0f, 1f),
-            new Vector3(0.5f, 0f, 1f), new Vector3(0.5f, 0f, 0f)
-        };
-        mesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
-        mesh.uv = new[] { new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(1f, 0f) };
-        mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            float tR = (float)r / rings;
+            float curR = radius * tR;
+
+            for (int s = 0; s <= segments; s++)
+            {
+                float angle = startAngle + s * stepAngle;
+                Vector3 dir = Quaternion.AngleAxis(angle, Vector3.up) * forward;
+                Vector3 ptWorld = center + dir * curR;
+
+                float groundY = TryFindGroundY(ptWorld, out float y) ? y : center.y;
+                ptWorld.y = groundY + heightOffset;
+
+                vertices[vertIdx] = tr.InverseTransformPoint(ptWorld);
+                normals[vertIdx] = Vector3.up;
+                uvs[vertIdx] = new Vector2(dir.x * 0.5f * tR + 0.5f, dir.z * 0.5f * tR + 0.5f);
+                vertIdx++;
+            }
+        }
+
+        int triIdx = 0;
+        int rowStride = segments + 1;
+        for (int r = 0; r < rings; r++)
+        {
+            for (int s = 0; s < segments; s++)
+            {
+                int c0 = r * rowStride + s;
+                int c1 = c0 + 1;
+                int n0 = (r + 1) * rowStride + s;
+                int n1 = n0 + 1;
+
+                triangles[triIdx + 0] = c0;
+                triangles[triIdx + 1] = n0;
+                triangles[triIdx + 2] = c1;
+
+                triangles[triIdx + 3] = c1;
+                triangles[triIdx + 4] = n0;
+                triangles[triIdx + 5] = n1;
+                triIdx += 6;
+            }
+        }
+
+        mesh.vertices = vertices;
+        mesh.normals = normals;
+        mesh.uv = uvs;
+        mesh.triangles = triangles;
         mesh.RecalculateBounds();
     }
 
@@ -1119,15 +1153,10 @@ public class BossAttackController : MonoBehaviour
 
     private IEnumerator AnimateGroundCrackRoutine(Vector3 center, Vector3 forward, float targetLength, float targetWidth)
     {
-        if (sharedBoxMesh == null)
-        {
-            sharedBoxMesh = new Mesh { name = "BoxUnitMesh" };
-            BuildBoxMesh(sharedBoxMesh);
-        }
+        EnsureConformedMeshes();
 
-        groundCrackMesh.sharedMesh = sharedBoxMesh;
-        groundCrackMesh.transform.position = center + Vector3.up * (FillHeightBias * 2f);
-        groundCrackMesh.transform.rotation = Quaternion.LookRotation(forward, Vector3.up);
+        groundCrackMesh.sharedMesh = conformedCrackMesh;
+        groundCrackMesh.transform.localScale = Vector3.one;
 
         if (groundCrackRenderer == null)
         {
@@ -1149,7 +1178,7 @@ public class BossAttackController : MonoBehaviour
         SetCrackAlpha(1f);
         groundCrackMesh.gameObject.SetActive(true);
 
-        // Pha 1: Kéo dãn phóng ra từ tâm chạm kiếm (0 -> 10m) trong 0.18 giây
+        // Pha 1: Kéo dãn phóng ra từ tâm chạm kiếm (0 -> 10m) trong 0.18 giây bám sát địa hình
         float stretchDuration = 0.18f;
         float stretchTimer = 0f;
         while (stretchTimer < stretchDuration)
@@ -1160,11 +1189,12 @@ public class BossAttackController : MonoBehaviour
             float eased = 1f - (1f - t) * (1f - t);
             float curLen = Mathf.Max(0.1f, targetLength * eased);
             float curWidth = Mathf.Max(0.1f, targetWidth * eased);
-            groundCrackMesh.transform.localScale = new Vector3(curWidth, 1f, curLen);
+
+            BuildConformedBoxMesh(groundCrackMesh, conformedCrackMesh, center, forward, curLen, curWidth, FloorYOffset + FillHeightBias * 2f);
             yield return null;
         }
 
-        groundCrackMesh.transform.localScale = new Vector3(targetWidth, 1f, targetLength);
+        BuildConformedBoxMesh(groundCrackMesh, conformedCrackMesh, center, forward, targetLength, targetWidth, FloorYOffset + FillHeightBias * 2f);
 
         // Pha 2: Giữ nguyên trong suốt thời gian gây sát thương
         while (!hitWindowClosed && isAttacking)

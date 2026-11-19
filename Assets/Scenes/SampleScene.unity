@@ -9273,7 +9273,7 @@ MonoBehaviour:
   bossHealth: {fileID: 481622108}
   telemetryLogger: {fileID: 1999670356}
   bossAttackController: {fileID: 481622105}
-  buildMode: 0
+  buildMode: 1
   surveyRoot: {fileID: 997178622}
   surveyButtonA: {fileID: 394408630}
   surveyButtonB: {fileID: 1930075992}
