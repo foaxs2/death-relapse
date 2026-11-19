@@ -13,7 +13,7 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Bản đồ mới (`Assets/Maps/GothicPlateau/`):** Đã tắt `/Plane`, tích hợp map Gothic 3D (`scene_final.glb`), `115` MeshCollider chọn lọc + `23` CapsuleCollider gốc cây mảnh, tường tàng hình mép vực (`Invisible_Cliff_Wall.glb`) và tường rễ Đại Thụ (`Invisible_GreatTree_Barrier.glb`), ánh trăng + `14` Point Light ấm + `GothicNightSkybox`, rải `11,550` cụm hoa trắng bằng GPU Instancing (`GothicFlowerInstancer.cs`).
 - **Player & Combat:** `Knight` đặt tại `(-13.00, 0.99, 24.00)` trong bãi hoa Boss (`CameraFollow` offset `(0, 6, -7.09)`), giữ nguyên `PlayerMovement.cs`, `PlayerDodge.cs`, `PlayerHealth.cs`, `PlayerAttackController.cs`, `SwordSlashTrail.cs`.
 - **Boss & Arena:** `Boss` đặt tại `(-11.00, 0.55, 29.50)`; nâng cấp `BossAttackController.cs` thêm bám cao độ địa hình (`snapToTerrain`, raycast) và né vật cản `SphereCast`, đặt `FloorYOffset = 0.06f` cho telegraph và vệt nứt đất trên sườn dốc nhẹ.
-- **UI, Telemetry & Tests:** `BattleLoopManager.cs` (`bossAttackController` đã nối), `TelemetryLogger.cs`, `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`; 6 EditMode tests cũ đã đạt trước đó; đã kiểm thử va chạm/di chuyển map mới trong Play Mode (`consoleErrors = 0`).
+- **UI, Telemetry & Tests:** `BattleLoopManager.cs` (`bossAttackController` đã nối), `TelemetryLogger.cs`, `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`; đã thêm 2 EditMode tests Tuần 6 (`TelemetryAndExperimentWeek6EditModeTests.cs`) kiểm tra cách ly A/B, bảo toàn thống kê đòn và tuần tự hóa Telemetry/hàng đợi offline; toàn bộ 8/8 EditMode tests đạt.
 - **Việc tiếp theo:** Kiểm tra gameplay trận đấu & các khu vực vườn trong Play Mode; chạy lại EditMode tests; lưu ý Git LFS cho `scene_final.glb` (`~59 MB > 50 MB`) trước khi commit/push.
 ---
 
@@ -565,3 +565,27 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Chơi thử nghiệm một ván đấu đầy đủ từ đầu tới Thắng/Thua trên arena.
 - **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)
+
+## [2026-11-18 13:35] Nâng cấp cảnh báo & vệt nứt đất bám địa hình 3D (Terrain-Conforming) và triệt tiêu lệch thời gian gồng của Boss
+- **Công cụ/model:** Gemini (Antigravity), Gemini 3.8 Flash, Unity CLI + Pipeline
+- **Yêu cầu của tôi (tóm tắt):** Fix đòn giậm đất (image vết nứt) và cảnh báo đỏ bị chìm/xuyên qua địa hình khi đánh vào chỗ cao hơn; đọc console log cân chỉnh lại chênh lệch thời gian gồng của Boss và kiểm tra độ khớp của đòn đánh so với vùng được vẽ ra.
+- **AI đã làm (file tạo/sửa):**
+  - `Assets/Scripts/Boss/BossAttackController.cs`: Thay thế mesh phẳng 2D cứng bằng hệ thống Mesh bám địa hình (`BuildConformedBoxMesh`, `BuildConformedSectorMesh`). Từng đốt dọc chiều dài (đòn nứt đất 10m & vùng cảnh báo) đều raycast tìm độ cao mặt đất thật `groundY`, giúp vệt nứt đất và vùng đỏ uốn lượn ôm khít bề mặt đồi/dốc/bậc đá; nâng `FloorYOffset` lên `0.08m` chống Z-fighting; sửa log báo đúng tên state trong Animator.
+  - `Assets/Animations/Boss/Boss Controller.controller`: Đọc console log thực tế xác định độ lệch: tăng `Speed` của `Red Attack` từ `1.0 -> 1.34` (đưa thời gian gồng từ `1.118s` về đúng `0.833s`) và `Strong Red Attack` từ `1.2 -> 1.50` (đưa thời gian gồng từ `1.866s` về đúng `1.500s`), triệt tiêu hoàn toàn cảnh báo lệch timing.
+- **Quyết định kỹ thuật và lý do:** Dùng phép chiếu `InverseTransformPoint` từ tọa độ thế giới sang local giúp mesh bám địa hình chính xác mà không phụ thuộc vào vị trí/scale của GameObject cha. Đo đạc từ console log thực tế để tính toán tỉ lệ Speed chính xác thay vì đoán mò.
+- **Chưa kiểm chứng / rủi ro:** Đã chạy `unity command test run --mode editor` đạt `6/6 PASS 100%`, recompile 0 lỗi. Cần người dùng vào Play Mode test trực tiếp trên dốc cao của bãi Boss để quan sát thị giác.
+- **Cách kiểm tra đề xuất:** Vào Play Mode, dụ Boss đứng dưới dốc đánh lên phía gò đất cao hoặc bậc thang, quan sát xem vệt nứt đất và vùng đỏ có trườn ôm sát mặt đất không; kiểm tra console xem cảnh báo lệch thời gian gồng có biến mất hoàn toàn không.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Kiểm tra độ khớp của đòn 2 nếu muốn chuyển từ SectorArc sang BoxLine cho đồng bộ 100% với vệt nứt đất thẳng.
+- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)
+## [2026-11-19 11:21] Viết kiểm thử EditMode Tuần 6 cho thí nghiệm A/B, thống kê đòn Boss và Telemetry
+- **Công cụ/model:** Gemini (Antigravity), MCP `unity`
+- **Yêu cầu của tôi (tóm tắt):** Tạo file test NUnit EditMode `Assets/Tests/EditMode/TelemetryAndExperimentWeek6EditModeTests.cs` với 2 bài test kiểm tra cách ly biến A/B + bảo toàn thống kê đòn đánh (`T == H + D + M`), và kiểm tra `SubmitMatchReport` ghi đủ 12 trường JSON, định dạng giờ Việt Nam, hàng đợi offline `telemetry_unsent_queue.jsonl` mà không sửa runtime scripts hay bắn HTTP thật.
+- **AI đã làm (file tạo/sửa):**
+  - Tạo `Assets/Tests/EditMode/TelemetryAndExperimentWeek6EditModeTests.cs` gồm `BattleLoopAndBossStats_EnforcesABModeAndConservesAttackBreakdown` và `TelemetryLogger_SubmitMatchReport_Serializes12FieldsAndQueuesOffline` (Unity tạo kèm file `.meta` khi refresh).
+- **Quyết định kỹ thuật và lý do:** Dùng Reflection thiết lập field private và gọi vòng đời `Awake`/`ApplyBuildMode`/`HandlePlayerHit` theo phong cách `CombatAndBossWeek4EditModeTests.cs`; gắn `SwordHitbox` có `bladeBase`/`bladeTip` giả lập để không kích hoạt `Debug.LogError` khi mở cửa sổ đánh. Với `TelemetryLogger`, `SubmitMatchReport` khi URL webhook rỗng sẽ trả về `SyncResult.LocalOnly` và không tự ghi `telemetry_unsent_queue.jsonl`, nên bài test vừa gọi `SubmitMatchReport` với URL rỗng để kiểm tra 12 trường JSON & timestamp giờ Việt Nam, vừa step coroutine `SendReportRoutine` qua 2 lần `MoveNext()` (không thực thi `PostJson`) để kiểm tra nhánh ghi hàng đợi offline mà vẫn đảm bảo 0 HTTP request. Sao lưu `byte[]` 3 file log trong `Application.persistentDataPath` ở `[SetUp]` và khôi phục/xóa ở `[TearDown]`.
+- **Chưa kiểm chứng / rủi ro:** Đã chạy toàn bộ EditMode suite qua Unity Test Runner (8/8 tests PASS, bao gồm 2 tests mới); chưa chạy PlayMode test cho luồng gửi mạng thật.
+- **Cách kiểm tra đề xuất:** Mở Window -> General -> Test Runner -> tab EditMode, nhấn Run All hoặc chạy riêng `TelemetryAndExperimentWeek6EditModeTests` để đối chiếu kết quả xanh.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Kiểm tra gameplay trận đấu đầy đủ trong Play Mode; rà soát các thay đổi trước khi xác nhận commit.
+- **Commit:** [AI] feat: thêm EditMode tests Tuần 6 cho A/B và Telemetry
