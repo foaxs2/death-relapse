@@ -1,0 +1,9 @@
+# Chỉ gửi thư mục telemetry-service vào Docker build context (tránh copy hàng GB tài nguyên Unity)
+*
+!telemetry-service/
+!telemetry-service/requirements.txt
+!telemetry-service/app/
+!telemetry-service/app/**
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/

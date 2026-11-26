@@ -1,0 +1,84 @@
+name: Death Relapse CI (v0.9)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  csharp-core-nunit:
+    name: C# Pure Core NUnit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Run NUnit Core Security Tests
+        run: dotnet test ci/DeathRelapse.CoreTests/DeathRelapse.CoreTests.csproj --verbosity normal
+
+  python-security-tests:
+    name: Python Telemetry Proxy Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Telemetry Proxy dependencies
+        run: pip install -r telemetry-service/requirements.txt
+
+      - name: Run pytest security suite
+        run: pytest -v telemetry-service/tests/
+
+  docker-build-smoke:
+    name: Docker Build & Security Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t death-relapse-telemetry:ci .
+
+      - name: Run container and verify /health (200) and unsigned POST (401)
+        run: |
+          docker run -d --name dr-ci-smoke \
+            -p 18080:8080 \
+            -e HMAC_SECRET=ci-smoke-test-secret \
+            -e DRY_RUN=true \
+            -e RATE_LIMIT_PER_MIN=10 \
+            death-relapse-telemetry:ci
+
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:18080/health; then
+              echo ""
+              echo "Health endpoint is ready."
+              break
+            fi
+            sleep 1
+          done
+
+          HEALTH_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:18080/health)
+          echo "GET /health -> HTTP ${HEALTH_CODE}"
+          test "${HEALTH_CODE}" -eq 200
+
+          UNAUTH_CODE=$(curl -s -o /tmp/unauth_resp.json -w "%{http_code}" \
+            -X POST http://127.0.0.1:18080/api/telemetry \
+            -H "Content-Type: application/json" \
+            -d '{"sessionId":"unsigned"}')
+          echo "Unsigned POST /api/telemetry -> HTTP ${UNAUTH_CODE} ($(cat /tmp/unauth_resp.json))"
+          test "${UNAUTH_CODE}" -eq 401
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm -f dr-ci-smoke || true

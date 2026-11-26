@@ -76,3 +76,15 @@ Thumbs.db
 
 # Local telemetry runtime secrets (do not commit real endpoints or HMAC keys)
 telemetry_runtime_config.json
+.env
+
+# Python & Telemetry Security Proxy cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# CI .NET project (giữ lại file .csproj trong ci/ mặc dù Unity .gitignore loại trừ *.csproj)
+!ci/**/*.csproj
+ci/**/bin/
+ci/**/obj/

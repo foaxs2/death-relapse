@@ -4,10 +4,15 @@ Game boss-rush 3D (Unity 6) phục vụ nghiên cứu ảnh hưởng của cách
 1. Cài Unity <ghi đúng phiên bản trong ProjectSettings/ProjectVersion.txt>.
 2. Mở project, mở scene `Assets/Scenes/SampleScene.unity`, bấm Play.
 ## Điều khiển
-WASD: di chuyển · Left Shift: lăn né (có I-frame) · Phím 1: ra lệnh boss chém thử
-## Trạng thái
-Đã có: di chuyển, lăn né, máu 300 HP, boss chém Great Sword Slash, thanh máu.
-Chưa có: tấn công của người chơi, chế độ A/B, telemetry.
+- `WASD`: Di chuyển quanh đấu trường (đồng bộ theo góc nhìn trên xuống kiểu Hades)
+- `Chuột trái`: Đánh combo 2 nhát kiếm (`Slash1` / `Slash2`)
+- `Space`: Lăn né có khung bất tử (I-frame)
+- `H`: Bật / Tắt bảng hướng dẫn điều khiển lần đầu (tự khóa tạm chiến đấu khi mở)
+- `F9`: Bật / Tắt công cụ đo NFR (FPS trung bình, 1% Low FPS trong 60s, thời gian nạp đấu trường `SceneLoadMs`)
+## Trạng thái (Đóng băng tính năng `v0.9` – Tuần 7)
+- **Gameplay & Arena:** Đấu trường Gothic 3D (`SampleScene.unity`), Knight (300 HP, combo 2 nhát, lăn né I-frame, tiếng bước chân khớp Animation Event), Boss Stelae Knight (3000 HP, 2 đòn `Red Attack` hình quạt + `Strong Red Attack` chữ nhật `BoxLine` kèm sóng xung kích nứt đất, bám địa hình).
+- **Thí nghiệm A/B & UX:** Chế độ Build A (`GroupA_NoTelegraph`) / Build B (`GroupB_WithTelegraph`), bảng hướng dẫn lần đầu (`FirstTimeControlsOverlay`), màn hình `THẤT BẠI` + khảo sát mở khóa Replay, 8 hiệu ứng âm thanh `.mp3` (Pixabay, đã ghi trong `CREDITS.md`).
+- **Bảo mật, Telemetry & DevSecOps:** Lõi bảo mật C# thuần (`TelemetrySecurityCore.cs`), chống sửa log cục bộ bằng `HMAC-SHA256`/`SHA-256`, chặn CSV/Formula Injection (OWASP A03), vá TC-12 gửi bù hàng đợi ngoại tuyến khi bấm Replay, Telemetry Security Proxy (FastAPI + Docker) và GitHub Actions CI (C# NUnit + Python pytest + Docker smoke test).
 
 > **Khó, nhưng thua là do mình gà.**
 
@@ -86,13 +91,75 @@ CREDITS.md
 - [ ] W2: 5 phỏng vấn người chơi, 8 user story, phạm vi MVP
 - [ ] W3: C4 mức 1–2, 3 ADR, repo "Hello World"
 - [ ] W4–W6: Must #1, #2, #3
-- [ ] W7: bảo mật, Docker, CI, đóng băng v0.9
+- [x] W7: bảo mật, Docker, CI, đóng băng v0.9
 - [ ] W8: pilot ≥ 20 người, bảng trước–sau, chi phí
 - [ ] W9–W10: báo cáo, slide, video demo, v1.0
 
-## Cách chạy
+## Hướng dẫn chạy DevSecOps, Docker & Kiểm thử (Dành cho GVHD / Chấm điểm Tuần 7 – `v0.9`)
 
-*(Cập nhật khi có bản chạy được ở W3–W4.)*
+Toàn bộ khóa bí mật (`HMAC_SECRET`) và URL đích (`APPS_SCRIPT_URL`) **tuyệt đối không hardcode trong mã nguồn Unity/Python hay bản build** mà chỉ nạp qua biến môi trường hoặc tệp cấu hình cục bộ (đã nằm trong `.gitignore`).
+
+### 1. Cấu hình biến môi trường cục bộ
+Sao chép tệp mẫu thành `.env` (dành cho Docker Proxy) và tùy chọn tạo `telemetry_runtime_config.json` (dành cho client Unity khi gửi sang proxy cục bộ):
+
+```bash
+# Linux / macOS / Git Bash
+cp .env.example .env
+cp telemetry_runtime_config.example.json telemetry_runtime_config.json
+
+# Windows PowerShell
+Copy-Item .env.example .env
+Copy-Item telemetry_runtime_config.example.json telemetry_runtime_config.json
+```
+
+> Lưu ý: Đặt cùng giá trị bí mật cho `HMAC_SECRET` trong `.env` và `hmacSecretKey` trong `telemetry_runtime_config.json` (hoặc biến môi trường `DR_TELEMETRY_HMAC_KEY`). Mặc định `DRY_RUN=true` để xác thực và ghi log kiểm toán cục bộ mà không cần URL Google Sheets thật.
+
+### 2. Khởi chạy Telemetry Security Proxy bằng Docker
+**Cách 1 — Dùng Docker Compose (khuyến nghị):**
+```bash
+docker compose up --build -d
+docker compose ps
+```
+
+**Cách 2 — Dùng `docker build` và `docker run` thuần:**
+```bash
+docker build -t death-relapse-telemetry:v0.9 .
+docker run -d --name death-relapse-telemetry-proxy \
+  --env-file .env \
+  -p 8080:8080 \
+  death-relapse-telemetry:v0.9
+```
+
+Dừng container sau khi kiểm tra:
+```bash
+docker compose down
+# hoặc: docker rm -f death-relapse-telemetry-proxy
+```
+
+### 3. Kiểm tra `/health`, Demo chặn tấn công & Đo thực tế NFR-05
+```bash
+# Kiểm tra sức khỏe dịch vụ
+curl -i http://127.0.0.1:8080/health
+
+# Chạy kịch bản minh chứng bảo mật (200 / 401 / 400 / 429) và đo độ trễ p50/p95 NFR-05
+python telemetry-service/scripts/attack_demo_and_p95.py --url http://127.0.0.1:8080 --secret change-me-local-secret
+```
+
+### 4. Chạy bộ kiểm thử tự động cục bộ (giống GitHub Actions CI)
+```bash
+# 1) Kiểm thử C# thuần (.NET 8 NUnit link trực tiếp Assets/Scripts/Core/TelemetrySecurityCore.cs)
+dotnet test ci/DeathRelapse.CoreTests/DeathRelapse.CoreTests.csproj --verbosity normal
+
+# 2) Kiểm thử bảo mật Python FastAPI (pytest)
+pip install -r telemetry-service/requirements.txt
+pytest -v telemetry-service/tests/
+```
+
+### 5. Danh sách tính năng đóng băng `v0.9`
+- **Không thêm gameplay mới** trong giai đoạn đóng băng: giữ nguyên 1 đấu trường, 1 Boss (2 đòn đánh), 1 Knight (combo 2 nhát + lăn né I-frame).
+- **Bảo mật 2 lớp:** Telemetry Security Proxy (HMAC-SHA256, chống Replay 300s, allow-list schema, chặn Formula Injection, bất biến `T == H + D + M`, Rate Limit 10 req/phút) + chống sửa file log cục bộ (`recordHash` + vá **TC-12** gửi bù khi Replay).
+- **3 Cải tiến UX playtest:** Onboarding Overlay (phím `H`), đánh bóng màn hình `THẤT BẠI` + dòng nhắc mở khóa Replay, thay toàn bộ SFX bằng 8 tệp `.mp3` sạch bản quyền + bước chân Knight đồng bộ Animation Event.
+- **Đo NFR & CI/CD:** `NfrBenchmarkRecorder` (`F9`), 14/14 Unity EditMode Tests + 10/10 .NET CI Core Tests + 13/13 Python Security Tests + Docker Smoke Test trên GitHub Actions.
 
 ## Asset và bản quyền
 
