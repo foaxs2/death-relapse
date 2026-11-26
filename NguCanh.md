@@ -8,13 +8,12 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 
 > AI ghi đè khối này mỗi lần cập nhật, tối đa 25 dòng.
 
-- **Đề tài:** Death Relapse, đồ án chuyên ngành (boss-rush 3D, camera cố định nghiêng từ trên xuống, thí nghiệm A/B telegraph + Telemetry).
-- **Công nghệ:** Unity 6 LTS (6000.3.11f1), URP, C#, Input System Package, `com.unity.cloud.gltfast` (6.20.0).
-- **Bản đồ mới (`Assets/Maps/GothicPlateau/`):** Đã tắt `/Plane`, tích hợp map Gothic 3D (`scene_final.glb`), `115` MeshCollider chọn lọc + `23` CapsuleCollider gốc cây mảnh, tường tàng hình mép vực (`Invisible_Cliff_Wall.glb`) và tường rễ Đại Thụ (`Invisible_GreatTree_Barrier.glb`), ánh trăng + `14` Point Light ấm + `GothicNightSkybox`, rải `11,550` cụm hoa trắng bằng GPU Instancing (`GothicFlowerInstancer.cs`).
-- **Player & Combat:** `Knight` đặt tại `(-13.00, 0.99, 24.00)` trong bãi hoa Boss (`CameraFollow` offset `(0, 6, -7.09)`), giữ nguyên `PlayerMovement.cs`, `PlayerDodge.cs`, `PlayerHealth.cs`, `PlayerAttackController.cs`, `SwordSlashTrail.cs`.
-- **Boss & Arena:** `Boss` đặt tại `(-11.00, 0.55, 29.50)`; nâng cấp `BossAttackController.cs` thêm bám cao độ địa hình (`snapToTerrain`, raycast) và né vật cản `SphereCast`, đặt `FloorYOffset = 0.06f` cho telegraph và vệt nứt đất trên sườn dốc nhẹ.
-- **UI, Telemetry & Tests:** `BattleLoopManager.cs` (`bossAttackController` đã nối), `TelemetryLogger.cs`, `PlayerHealthBarUI.cs`, `BossHealthBarUI.cs`; đã thêm 2 EditMode tests Tuần 6 (`TelemetryAndExperimentWeek6EditModeTests.cs`) kiểm tra cách ly A/B, bảo toàn thống kê đòn và tuần tự hóa Telemetry/hàng đợi offline; toàn bộ 8/8 EditMode tests đạt.
-- **Việc tiếp theo:** Kiểm tra gameplay trận đấu & các khu vực vườn trong Play Mode; chạy lại EditMode tests; lưu ý Git LFS cho `scene_final.glb` (`~59 MB > 50 MB`) trước khi commit/push.
+- **Đề tài:** Death Relapse, đồ án chuyên ngành (boss-rush 3D, camera nghiêng từ trên xuống kiểu Hades, thí nghiệm A/B telegraph + Telemetry).
+- **Trạng thái hiện tại (Tuần 7 – Đóng băng tính năng v0.9):** Đã hoàn tất bảo mật Telemetry, vá TC-12, 3 cải tiến UX playtest, công cụ đo NFR và mở rộng NUnit EditMode Tests (12/12 PASS, 0 lỗi console Unity).
+- **Bảo mật Telemetry & TC-12:** Tách lõi C# thuần `TelemetrySecurityCore.cs` (không dùng `UnityEngine`, chặn CSV/Formula Injection OWASP A03, kiểm tra bất biến `T == H + D + M`, ký & xác minh `HMAC-SHA256`/`SHA-256` thời gian hằng số). Nâng cấp `TelemetryLogger.cs` bỏ URL hardcode (nạp qua biến môi trường -> `telemetry_runtime_config.json` -> proxy cục bộ `127.0.0.1:8080`), ký `recordHash` + `timestampUnix`, gắn header `X-DR-Signature`, `X-DR-Timestamp`, `X-DR-Client-Version: v0.9`, chặn bản ghi bị sửa tay (`TamperDetected`) và thêm `FlushOfflineQueueAsync()` gọi tự động khi bấm Replay / kết thúc trận.
+- **3 Cải tiến UX & Đồng bộ hình học:** Thêm `FirstTimeControlsOverlay.cs` (Dark Fantasy, phím `H`, tự khóa Player/Boss khi mở); đổi `DefeatPanel` từ `Bạn Đã Tèo` -> `THẤT BẠI` + thêm dòng hướng dẫn mở khóa Replay phía trên `SurveyRoot`; sinh 5 tệp SFX PCM WAV (`Assets/Audio/SFX/`, tổng 78.6 KB) + `CombatAudioController.cs` (0 GC Alloc, phát công bằng cho cả Build A/B); đồng bộ `BossAttack_StrongRed_1.5s.asset` sang `BoxLine` (`boxWidth=1.8`, `zoneForwardOffset=1.0`, `groundShockwave=true`) và sửa `BossAttackController.cs` (cache Animator param để 0 GC Alloc trong `Update`, khớp Gizmo offset).
+- **NFR & Kiểm thử tự động:** Thêm `NfrBenchmarkRecorder.cs` (phím `F9`, đo Avg FPS, 1% Low FPS trong 60s, `SceneLoadMs`, xuất `nfr_benchmark_report.txt`); thêm 4 test mới trong `SecurityAndWeek7EditModeTests.cs` -> tổng 12/12 EditMode tests PASS.
+- **Việc tiếp theo:** Người dùng chụp ảnh "SAU" (After) các cải tiến UX, đo Profiler/F9 trong Play Mode và xác nhận trước khi commit.
 ---
 
 ## Nhật ký
@@ -589,3 +588,35 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Kiểm tra gameplay trận đấu đầy đủ trong Play Mode; rà soát các thay đổi trước khi xác nhận commit.
 - **Commit:** [AI] feat: thêm EditMode tests Tuần 6 cho A/B và Telemetry
+## [2026-11-26 10:55] Chỉnh CameraFollow sang góc nhìn trên xuống kiểu Hades và đồng bộ hướng di chuyển Player
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Chỉnh Camera của Player thành chuẩn góc nhìn trên xuống giống Hades.
+- **AI đã làm (file tạo/sửa):**
+  - Assets/Scripts/Core/CameraFollow.cs: Chuyển từ offset tĩnh sang cấu hình góc nhìn Hades (pitchAngle = 42°, yawAngle = 45°, distance = 20m, ieldOfView = 35°, 	argetHeightOffset = 1m, khóa Roll Z = 0°), bổ sung OnValidate() và ApplyCameraSettingsImmediate() để xem trước ngay trong Scene View.
+  - Assets/Scripts/Player/PlayerMovement.cs: Thêm helper ConvertInputToCameraPlane(Vector2) quy đổi hướng WASD/Left Stick theo mặt phẳng XZ của Main Camera để bấm W luôn đi lên phía trên màn hình khi Camera xoay chéo 45°.
+- **Quyết định kỹ thuật và lý do:** Hades dùng góc nhìn nghiêng ~40–45° kết hợp góc xoay chéo isometric ~45° và FOV hẹp (~35°) để giảm méo phối cảnh, đồng thời khóa Z = 0 tránh nghiêng chân trời (scene cũ đang lệch Z = 9.228°). Khi camera xoay chéo 45°, input WASD phải chiếu theo hướng camera thay vì trục thế giới để điều khiển tự nhiên. Không sửa trực tiếp file .unity.
+- **Chưa kiểm chứng / rủi ro:** Chưa biên dịch hoặc chạy thử trong Unity Editor/Play Mode ở phiên này; cần kiểm tra xem góc distance = 20 có bị tường/cây trên map GothicPlateau che khuất nhân vật hay không.
+- **Cách kiểm tra đề xuất:** Mở SampleScene.unity, chọn Main Camera, kiểm tra các thông số trên CameraFollow (có thể chỉnh yawAngle sang -45, 45 hoặc   cho hợp bố cục arena), bấm Play để test di chuyển WASD, lăn né (Space) và chém theo chuột.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Tinh chỉnh pitchAngle, yawAngle, distance trong Inspector cho vừa mắt với arena thực tế rồi kiểm tra trong Play Mode.
+- **Commit:** [AI] feat: chỉnh CameraFollow kiểu Hades và đồng bộ hướng chạy Player
+
+## [2026-11-26 11:13] Tuần 7 (v0.9): Bảo mật Telemetry, vá TC-12, 3 cải tiến UX, công cụ NFR và 12/12 EditMode tests
+- **Công cụ/model:** Gemini (Antigravity)
+- **Yêu cầu của tôi (tóm tắt):** Đóng băng tính năng (v0.9): tách lõi C# thuần bảo mật Telemetry, nâng cấp TelemetryLogger chống sửa log cục bộ + bỏ hardcode URL + vá TC-12 gửi bù khi Replay, triển khai 3 cải tiến UX (Onboarding Overlay phím H, đánh bóng DefeatPanel/SurveyRoot, 5 SFX PCM + CombatAudioController + đồng bộ StrongRedAttack BoxLine), tạo công cụ đo NFR (F9) và bổ sung 4 bài test NUnit EditMode.
+- **AI đã làm (file tạo/sửa):**
+  - Tạo `Assets/Scripts/Core/TelemetrySecurityCore.cs` (C# thuần, không `UnityEngine`): `SanitizeSpreadsheetField`, `ValidateTelemetryInvariants`, `ComputeRecordHmacSha256`, `VerifyRecordIntegrity`, `CreateSignedEnvelopeJson`, `TryVerifySignedLine`.
+  - Tạo `telemetry_runtime_config.example.json` và thêm `telemetry_runtime_config.json` vào `.gitignore`.
+  - Sửa `Assets/Scripts/Core/TelemetryLogger.cs`: nạp cấu hình ngoài (env -> file -> `127.0.0.1:8080/api/telemetry`), ký mọi dòng JSONL, xác minh `recordHash` & bất biến trước khi gửi hàng đợi (`TamperDetected`), gắn header `X-DR-Signature`/`X-DR-Timestamp`/`X-DR-Client-Version: v0.9`, thêm `FlushOfflineQueueAsync()`.
+  - Sửa `Assets/Scripts/Core/BattleLoopManager.cs`: gọi `FlushOfflineQueueAsync()` khi bấm Replay / kết thúc trận / bắt đầu trận mới, hỗ trợ `surveyInstructionText` và đánh bóng tiêu đề thua `THẤT BẠI`.
+  - Tạo `Assets/Scripts/UI/FirstTimeControlsOverlay.cs` (Input System mới, phím `H`, tự sinh UI Dark Fantasy TMP và khóa tạm Player/Boss khi mở).
+  - Tạo `Tools/generate_combat_sfx.py` sinh 5 tệp `.wav` PCM 16-bit tại `Assets/Audio/SFX/` (tổng 78.6 KB), cập nhật `CREDITS.md`, tạo `Assets/Scripts/Audio/CombatAudioController.cs` (0 GC Alloc) và thêm sự kiện âm thanh vào `PlayerAttackController.cs`, `BossAttackController.cs` (đồng thời cache `walkSpeedParam` tránh GC Alloc mỗi frame và đồng bộ `OnDrawGizmos` với `ZoneForwardOffset`).
+  - Tạo `Assets/Scripts/Core/NfrBenchmarkRecorder.cs` (phím `F9`, mảng cấp phát sẵn 0 GC Alloc đo 60s Avg FPS + 1% Low FPS và `Stopwatch` đo `SceneLoadMs`).
+  - Tạo `Assets/Tests/EditMode/SecurityAndWeek7EditModeTests.cs` (4 test mới).
+  - Qua Unity MCP cập nhật `Assets/Data/Attacks/BossAttack_StrongRed_1.5s.asset` (`BoxLine`, `boxWidth=1.8`, `zoneForwardOffset=1.0`, `groundShockwave=true`) và `Assets/Scenes/SampleScene.unity` (`TxtDIE -> THẤT BẠI`, thêm `SurveyUnlockHintText`, gắn `FirstTimeControlsOverlay`, `CombatAudioController` với 5 AudioClip, `NfrBenchmarkRecorder`, xóa URL hardcode cũ khỏi `TelemetryLogger`).
+- **Quyết định kỹ thuật và lý do:** Giữ nguyên 12 trường cấp 1 trong JSONL và chỉ nối thêm `timestampUnix`, `recordHash` ở cuối object để tương thích ngược 100% với `JsonUtility` và bài test Tuần 6. Dùng `InputAction` bật/tắt trong `OnEnable`/`OnDisable` chuẩn Input System mới. Dùng mảng `float[]` cấp phát sẵn và cache `AnimatorControllerParameter` để đảm bảo 0 GC Alloc trong vòng lặp chiến đấu.
+- **Chưa kiểm chứng / rủi ro:** Đã biên dịch sạch trong Unity 6000.3.11f1 (0 lỗi console) và chạy Unity Test Runner EditMode đạt 12/12 PASS; chưa kiểm tra trực quan trong Play Mode (bố cục chữ `SurveyUnlockHintText`, nghe thử âm lượng 5 SFX, bấm `H` và `F9` thực tế).
+- **Cách kiểm tra đề xuất:** Bấm Play trong `SampleScene` để kiểm tra `FirstTimeControlsOverlay` (lần đầu và phím `H`), thử thua để xem `THẤT BẠI` + dòng nhắc phía trên khảo sát, nghe đủ 5 âm thanh chiến đấu, bật Unity Profiler + nhấn `F9` để đo 60s FPS và kiểm tra `nfr_benchmark_report.txt`.
+- **Tôi đã kiểm tra / chỉnh sửa:** 
+- **Việc tiếp theo:** Người dùng chụp ảnh "SAU" (After) các cải tiến UX, chạy đo NFR/Profiler trong Editor và xác nhận khi sẵn sàng commit.
+- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)

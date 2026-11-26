@@ -60,12 +60,7 @@ public class PlayerMovement : MonoBehaviour
             if (moveAction != null && moveAction.action != null && moveAction.action.enabled)
             {
                 Vector2 liveInput = moveAction.action.ReadValue<Vector2>();
-                Vector3 liveDir = new Vector3(liveInput.x, 0f, liveInput.y);
-                if (liveDir.sqrMagnitude > 1f)
-                {
-                    liveDir.Normalize();
-                }
-                return liveDir;
+                return ConvertInputToCameraPlane(liveInput);
             }
             return currentInputDirection;
         }
@@ -127,14 +122,8 @@ public class PlayerMovement : MonoBehaviour
             input = moveAction.action.ReadValue<Vector2>();
         }
 
-        // Chuyển đổi input 2D thành vector hướng 3D theo trục thế giới (camera cố định)
-        currentInputDirection = new Vector3(input.x, 0f, input.y);
-
-        // Chuẩn hóa vector nếu độ dài lớn hơn 1 để đi chéo không bị nhanh hơn đi thẳng
-        if (currentInputDirection.sqrMagnitude > 1f)
-        {
-            currentInputDirection.Normalize();
-        }
+        // Chuyển đổi input 2D thành hướng 3D trên mặt phẳng sàn theo góc nhìn của Camera (chuẩn cho góc chéo Hades)
+        currentInputDirection = ConvertInputToCameraPlane(input);
 
         // Nếu bị khóa di chuyển (đang né, choáng, hoặc animation đòn đánh), chỉ áp dụng trọng lực bám sàn
         if (isMovementLocked)
@@ -165,6 +154,54 @@ public class PlayerMovement : MonoBehaviour
 
         // Cập nhật giá trị Speed cho Animator
         UpdateAnimator(horizontalVelocity.magnitude);
+    }
+
+    /// <summary>
+    /// Quy đổi input 2D (WASD / Left Stick) sang hướng di chuyển trên mặt phẳng ngang XZ theo góc xoay của Camera.
+    /// Đảm bảo bấm W luôn đi thẳng lên phía trên màn hình dù Camera xoay chéo kiểu Hades.
+    /// </summary>
+    private Vector3 ConvertInputToCameraPlane(Vector2 input)
+    {
+        if (input.sqrMagnitude < 0.0001f)
+        {
+            return Vector3.zero;
+        }
+
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
+        Vector3 direction;
+        if (mainCamera != null)
+        {
+            Vector3 camForward = mainCamera.transform.forward;
+            camForward.y = 0f;
+            if (camForward.sqrMagnitude > 0.0001f)
+            {
+                camForward.Normalize();
+            }
+
+            Vector3 camRight = mainCamera.transform.right;
+            camRight.y = 0f;
+            if (camRight.sqrMagnitude > 0.0001f)
+            {
+                camRight.Normalize();
+            }
+
+            direction = camRight * input.x + camForward * input.y;
+        }
+        else
+        {
+            direction = new Vector3(input.x, 0f, input.y);
+        }
+
+        if (direction.sqrMagnitude > 1f)
+        {
+            direction.Normalize();
+        }
+
+        return direction;
     }
 
     /// <summary>
