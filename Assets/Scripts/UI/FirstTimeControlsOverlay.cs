@@ -37,6 +37,7 @@ public class FirstTimeControlsOverlay : MonoBehaviour
     private InputAction dismissKeyAction;
     private bool isOverlayOpen;
     private float openedRealtime;
+    private int lastClosedFrame = -1;
 
     // Lưu trạng thái bật/tắt trước khi khóa để khôi phục chính xác khi đóng overlay
     private bool hadPlayerAttackEnabled;
@@ -45,6 +46,7 @@ public class FirstTimeControlsOverlay : MonoBehaviour
     private bool hadMovementLocked;
 
     public bool IsOverlayOpen => isOverlayOpen;
+    public bool JustClosedThisFrame => lastClosedFrame == Time.frameCount;
 
     private void Awake()
     {
@@ -124,7 +126,7 @@ public class FirstTimeControlsOverlay : MonoBehaviour
 
     private void OnToggleHelpPerformed(InputAction.CallbackContext context)
     {
-        if (battleLoopManager != null && battleLoopManager.IsBattleEnded)
+        if (PauseMenuOverlay.IsGamePaused || PauseMenuOverlay.JustResumedThisFrame || (battleLoopManager != null && battleLoopManager.IsBattleEnded))
         {
             return;
         }
@@ -188,6 +190,7 @@ public class FirstTimeControlsOverlay : MonoBehaviour
         if (isOverlayOpen)
         {
             isOverlayOpen = false;
+            lastClosedFrame = Time.frameCount;
             // Nhả khóa ở cuối frame để phím Space vừa nhấn để đóng không kích hoạt lăn né ngay lập tức
             if (isActiveAndEnabled)
             {

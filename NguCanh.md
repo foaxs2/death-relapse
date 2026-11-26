@@ -9,11 +9,11 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 > AI ghi đè khối này mỗi lần cập nhật, tối đa 25 dòng.
 
 - **Đề tài:** Death Relapse, đồ án chuyên ngành (boss-rush 3D, camera nghiêng từ trên xuống kiểu Hades, thí nghiệm A/B telegraph + Telemetry).
-- **Trạng thái hiện tại (Tuần 7 – Hoàn tất đóng băng `v0.9` & DevSecOps):** Đã hoàn thiện cả phía Unity client (14/14 EditMode tests PASS, âm thanh `.mp3`, bước chân Knight đồng bộ Animation) lẫn hạ tầng DevSecOps: Telemetry Security Proxy (FastAPI), Docker, `.NET 8` NUnit CI và GitHub Actions workflow.
-- **Telemetry Security Proxy (`telemetry-service/`):** FastAPI + Uvicorn + httpx + pytest, khớp 100% hợp đồng 12 trường cấp 1 + `timestampUnix` + `recordHash` và chuỗi canonical `{timestampUnix}.{coreJson}` của `TelemetrySecurityCore.cs`/`TelemetryLogger.cs`; xác thực `HMAC-SHA256` + chống Replay 300s (`401`), kiểm tra allow-list + chặn Formula Injection + bất biến `T == H + D + M` (`400`), Rate Limit 10 req/phút (`429`), hỗ trợ `DRY_RUN=true` và đọc bí mật qua biến môi trường.
-- **Docker & CI/CD:** Đóng gói `Dockerfile` (non-root `appuser`, `HEALTHCHECK`), `.dockerignore`, `docker-compose.yml`, `.env.example`; tạo `ci/DeathRelapse.CoreTests/` link trực tiếp `TelemetrySecurityCore.cs` (22/22 test case NUnit PASS); tạo `.github/workflows/ci.yml` (3 job song song: `csharp-core-nunit`, `python-security-tests`, `docker-build-smoke`). Đã xóa `Tools/generate_combat_sfx.py` và cập nhật `README.md`.
-- **Kết quả kiểm thử cục bộ:** `dotnet test` 22/22 PASS (0 lỗi), `pytest` 13/13 PASS (có vector đối chiếu chéo C# ↔ Python trùng từng ký tự), `attack_demo_and_p95.py` qua Uvicorn cục bộ đạt 5/5 kịch bản chặn tấn công + NFR-05 `p95 = 2.97 ms`. Docker Engine cục bộ đang tắt nên chưa chạy `docker build` / `docker compose up` trực tiếp trên máy này.
-- **Việc tiếp theo:** Người dùng bật Docker Desktop để chạy thử `docker compose up --build -d` + `attack_demo_and_p95.py`, sau đó commit, push kiểm tra GitHub Actions CI xanh trên nhánh `main` và gắn tag `v0.9`.
+- **Trạng thái hiện tại (Tuần 7 – `v0.9` + ranh giới cổng Boss & Tạm Dừng):** Đã hoàn thiện hạ tầng DevSecOps (FastAPI Telemetry Proxy chạy Docker thật `p95 = 3.70 ms`, `.NET 8` NUnit 22/22 PASS, `pytest` 13/13 PASS), bổ sung ranh giới cổng `Fix2_GateBoss` và màn hình Tạm Dừng phím `ESC`, đã kiểm tra không lỗi và push lên `origin/main`.
+- **Cổng Boss (`BossAttackController.cs`):** Gắn `arenaGateTransform = Fix2_GateBoss` trong `SampleScene.unity`. Khi Knight còn ở khu Nhà thờ (chưa qua cổng `Fix2_GateBoss`), AI Boss đứng yên không phát hiện hay di chuyển; sau khi Knight bước vào bãi Boss, AI Boss kích hoạt nhưng luôn bị kẹp tại mép trong cổng (`ClampBossPositionAtGate`) nên không thể đi qua cổng ra ngoài nhà thờ hay đánh xuyên cổng.
+- **Tạm Dừng phím `ESC` (`PauseMenuOverlay.cs`):** Gắn trên `/Canvas` (Input System mới `InputAction`), bấm `ESC` ngưng game (`Time.timeScale = 0`, `AudioListener.pause = true`) và chỉ hiển thị đúng 1 dòng chữ **`Tạm Dừng`**; bấm phím bất kỳ để tiếp tục. Có chống xung đột cùng frame với `FirstTimeControlsOverlay` (`H`/`ESC`).
+- **Kiểm thử tự động:** Unity EditMode đạt **16/16 PASS** (0 lỗi Console), `.NET 8` CI đạt 22/22 PASS, Python `pytest` đạt 13/13 PASS.
+- **Việc tiếp theo:** Xuất 2 bản Build A/B (`GroupA_NoTelegraph` / `GroupB_WithTelegraph`), kiểm tra GitHub Actions CI xanh và cập nhật tag/Release `v0.9` nếu muốn bao gồm bản cổng Boss + Tạm Dừng mới nhất.
 ---
 
 ## Nhật ký
@@ -654,4 +654,20 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Cách kiểm tra đề xuất:** Khởi động Docker Desktop, tạo `.env` từ `.env.example`, chạy `docker compose up --build -d`, kiểm tra `curl http://127.0.0.1:8080/health` và chạy `python telemetry-service/scripts/attack_demo_and_p95.py --url http://127.0.0.1:8080 --secret change-me-local-secret`; sau đó commit, push lên `main` kiểm tra 3 job GitHub Actions CI xanh và tạo tag `v0.9`.
 - **Tôi đã kiểm tra / chỉnh sửa:** 
 - **Việc tiếp theo:** Người dùng bật Docker Desktop kiểm tra container thực tế, rồi commit, push lên GitHub và gắn tag `v0.9`.
-- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)
+- **Commit:** [AI] feat: dựng Telemetry Proxy Docker, .NET NUnit CI và GitHub Actions
+
+## [2026-11-26 22:04] Chặn AI Boss ngoài cổng Fix2_GateBoss & thêm màn hình Tạm Dừng (ESC)
+- **Công cụ/model:** Gemini (Antigravity), Unity MCP
+- **Yêu cầu của tôi (tóm tắt):** Chỉnh AI Boss không phát hiện/di chuyển nếu Player chưa đi qua cổng vào khu Boss (Player đặt ở khu vực nhà thờ), chặn Boss không chạy ra khỏi cổng được; thêm chức năng bấm `ESC` tạm dừng game chỉ hiện duy nhất chữ `"Tạm Dừng"` (không ghi gì thêm trong canvas), bấm phím bất kỳ để tiếp tục.
+- **AI đã làm (file tạo/sửa):**
+  - Sửa `Assets/Scripts/Boss/BossAttackController.cs`: thêm cấu hình `Arena Gate & Aggro Boundary` (`enforceArenaGateBoundary`, `arenaGateTransform`, `playerGateEntryLocalX`, `arenaDeepInsideWorldX`, `gateHalfOpeningWidth`, `bossGateMaxLocalX`); chỉ kích hoạt AI khi Player bước qua cổng `Fix2_GateBoss` vào bãi Boss, kẹp vị trí Boss trong `ClampBossPositionAtGate()` tại khe cổng để không chạy ra ngoài được và không đánh xuyên cổng khi Player đứng ngoài.
+  - Tạo `Assets/Scripts/UI/PauseMenuOverlay.cs`: dùng Input System mới (`PauseEscapeAction` + `ResumeAnyKeyAction`), tự sinh nền mờ chỉ chứa đúng 1 `TextMeshProUGUI` `"Tạm Dừng"`, dừng `Time.timeScale = 0` + `AudioListener.pause = true` + khóa tạm input chiến đấu, bấm phím bất kỳ để tiếp tục và trả input ở frame sau.
+  - Sửa `Assets/Scripts/UI/FirstTimeControlsOverlay.cs` và `Assets/Scripts/Core/BattleLoopManager.cs`: phối hợp cờ `JustClosedThisFrame` / `JustResumedThisFrame` tránh xung đột phím `ESC`/`H` trong cùng 1 frame và đảm bảo `AudioListener.pause = false` khi `RestartBattle()`.
+  - Cập nhật `Assets/Scenes/SampleScene.unity` qua Unity MCP: gán `arenaGateTransform = Fix2_GateBoss` trên `Boss_Body`, gắn `PauseMenuOverlay` lên `/Canvas` và nối đủ tham chiếu.
+  - Mở rộng `Assets/Tests/EditMode/SecurityAndWeek7EditModeTests.cs`: thêm 2 test mới (`BossAttackController_WaitsOutsideGateAndClampsExitAtGate`, `PauseMenuOverlay_DisplaysOnlyTamDungText_AndTogglesTimeScale`).
+- **Quyết định kỹ thuật và lý do:** Chặn Boss trực tiếp bằng tọa độ local của `Fix2_GateBoss` trong vùng khe cổng (`|localZ| <= 3.2m`) thay vì tạo physics layer mới trong `ProjectSettings/` giúp Player đi qua cổng tự do, Boss không bao giờ lọt ra khỏi cổng mà không ảnh hưởng các góc bãi hoa khác. Dùng cờ `Time.frameCount` trên cả 2 overlay tránh lỗi bấm `ESC` đóng hướng dẫn lại mở luôn Tạm Dừng trong cùng 1 frame.
+- **Chưa kiểm chứng / rủi ro:** Đã biên dịch sạch 0 lỗi Console và chạy Unity Test Runner EditMode đạt 16/16 PASS; chưa chạy Play Mode bằng tay để kiểm tra thực tế trải nghiệm đi bộ từ nhà thờ qua cổng `Fix2_GateBoss` và bấm `ESC` / phím bất kỳ.
+- **Cách kiểm tra đề xuất:** Bấm Play trong `SampleScene.unity`: (1) đứng ở khu Nhà thờ kiểm tra Boss đứng yên, (2) đi xuống cầu thang qua cổng `Fix2_GateBoss` kiểm tra Boss phát hiện và lao tới, (3) chạy ngược ra cổng kiểm tra Boss bị chặn bên trong cổng, (4) bấm `ESC` kiểm tra màn hình ngưng game chỉ hiện chữ `"Tạm Dừng"` và bấm phím bất kỳ để tiếp tục.
+- **Tôi đã kiểm tra / chỉnh sửa:** đã kiểm tra theo quyết định không thấy lỗi gì.
+- **Việc tiếp theo:** Xuất 2 bản Build A/B và kiểm tra GitHub Actions CI xanh trên `main`.
+- **Commit:** [AI] feat: chặn AI Boss ngoài cổng và thêm Tạm Dừng bằng ESC

@@ -326,6 +326,7 @@ public class BattleLoopManager : MonoBehaviour
 
         if (Application.isPlaying)
         {
+            AudioListener.pause = false;
             Time.timeScale = 1f;
             Scene activeScene = SceneManager.GetActiveScene();
             SceneManager.LoadScene(activeScene.buildIndex);

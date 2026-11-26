@@ -43,6 +43,29 @@ public class BossAttackController : MonoBehaviour
     [Tooltip("Tên parameter Float trong Animator của Boss để điều khiển chuyển trạng thái đi bộ (GreatAxeWalk)")]
     [SerializeField] private string walkSpeedParam = "Speed";
 
+    [Header("Arena Gate & Aggro Boundary")]
+    [Tooltip("Bật: Boss chỉ phát hiện & đuổi theo khi Player đã đi qua cổng vào khu Boss, và Boss không thể đi ra khỏi cổng.")]
+    [SerializeField] private bool enforceArenaGateBoundary = true;
+
+    [Tooltip("Transform của cổng vào Boss (Fix2_GateBoss). Nếu để trống sẽ tự tìm theo tên hoặc bỏ qua chặn cổng.")]
+    [SerializeField] private Transform arenaGateTransform;
+
+    [Tooltip("Tên GameObject cổng dùng để tự tìm nếu chưa kéo thả vào Inspector")]
+    [SerializeField] private string arenaGateObjectName = "Fix2_GateBoss";
+
+    [Tooltip("Ngưỡng local X tính từ cổng để xác nhận Player đã bước vào trong bãi Boss (âm = phía bên trong bãi Boss)")]
+    [SerializeField] private float playerGateEntryLocalX = -1.2f;
+
+    [Tooltip("Ngưỡng world X sâu bên trong bãi Boss; nếu Player đứng sâu hơn mức này cũng tính đã vào khu Boss")]
+    [SerializeField] private float arenaDeepInsideWorldX = -4.5f;
+
+    [Tooltip("Nửa chiều rộng vùng cửa cổng theo trục dọc cổng (local Z) để chặn Boss không bước qua khe cổng")]
+    [Min(0.5f)]
+    [SerializeField] private float gateHalfOpeningWidth = 3.2f;
+
+    [Tooltip("Giới hạn local X tối đa của Boss ở vùng cổng (luôn giữ Boss bên trong bãi Boss, không lọt ra ngoài cổng)")]
+    [SerializeField] private float bossGateMaxLocalX = -1.35f;
+
     [Header("References")]
     [Tooltip("Animator của Boss để kích hoạt animation chém")]
     [SerializeField] private Animator animator;
@@ -104,6 +127,7 @@ public class BossAttackController : MonoBehaviour
     private bool hasProcessedPlayerContactThisWindow = false;
     private bool hasHitPlayerThisWindow = false;
     private bool hasDodgedThisWindow = false;
+    private bool hasPlayerEnteredArena = false;
     private float attackTriggerRealtime = 0f;
     private float lastAttackEndTime = -999f;
     private Coroutine attackCoroutine;
@@ -159,6 +183,7 @@ public class BossAttackController : MonoBehaviour
     private Mesh conformedCrackMesh;
 
     public bool IsAttacking => isAttacking;
+    public bool HasPlayerEnteredArena => hasPlayerEnteredArena;
     public bool ShowTelegraphVisuals
     {
         get => showTelegraphVisuals;
@@ -203,6 +228,15 @@ public class BossAttackController : MonoBehaviour
         {
             walkSpeedHash = Animator.StringToHash(walkSpeedParam);
             CacheWalkSpeedParamAvailability();
+        }
+
+        if (arenaGateTransform == null && !string.IsNullOrEmpty(arenaGateObjectName))
+        {
+            GameObject gateObj = GameObject.Find(arenaGateObjectName);
+            if (gateObj != null)
+            {
+                arenaGateTransform = gateObj.transform;
+            }
         }
 
         HideTelegraphVisuals();
@@ -251,6 +285,17 @@ public class BossAttackController : MonoBehaviour
             return;
         }
 
+        // Không phát hiện, không xoay mặt và không đuổi theo nếu Player chưa đi qua cổng vào khu Boss
+        if (enforceArenaGateBoundary && arenaGateTransform != null)
+        {
+            UpdateArenaEntranceDetection();
+            if (!hasPlayerEnteredArena)
+            {
+                UpdateWalkAnimator(0f);
+                return;
+            }
+        }
+
         Vector3 toPlayerXZ = Vector3.ProjectOnPlane(player.position - transform.position, Vector3.up);
         float distanceToPlayer = toPlayerXZ.magnitude;
 
@@ -261,9 +306,18 @@ public class BossAttackController : MonoBehaviour
             transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
         }
 
+        // Nếu Player chạy ngược ra ngoài cổng, Boss không được đuổi ra hay vung đòn qua cổng
+        bool playerOutsideGate = enforceArenaGateBoundary && arenaGateTransform != null && IsPositionOutsideArenaGate(player.position);
+
         // 2. Nếu ngoài tầm đánh: tiến về phía Player và phát animation đi bộ (GreatAxeWalk)
         if (distanceToPlayer > attackRange)
         {
+            if (playerOutsideGate && IsBossNearGateBoundary())
+            {
+                UpdateWalkAnimator(0f);
+                return;
+            }
+
             Vector3 moveDirection = toPlayerXZ.normalized;
             float stepDist = moveSpeed * Time.deltaTime;
             if (snapToTerrain)
@@ -272,7 +326,8 @@ public class BossAttackController : MonoBehaviour
             }
             else
             {
-                transform.position += moveDirection * stepDist;
+                Vector3 nextPos = ClampBossPositionAtGate(transform.position + moveDirection * stepDist);
+                transform.position = nextPos;
             }
             UpdateWalkAnimator(moveSpeed);
         }
@@ -285,11 +340,63 @@ public class BossAttackController : MonoBehaviour
                 SnapBossToGround(false);
             }
 
-            if (Time.time >= lastAttackEndTime + attackCooldown)
+            if (!playerOutsideGate && Time.time >= lastAttackEndTime + attackCooldown)
             {
                 TriggerAttack();
             }
         }
+    }
+
+    private void UpdateArenaEntranceDetection()
+    {
+        if (hasPlayerEnteredArena || player == null || arenaGateTransform == null)
+        {
+            return;
+        }
+
+        Vector3 localPlayer = arenaGateTransform.InverseTransformPoint(player.position);
+        bool crossedThroughGate = Mathf.Abs(localPlayer.z) <= gateHalfOpeningWidth && localPlayer.x <= playerGateEntryLocalX;
+        bool alreadyDeepInside = player.position.x <= arenaDeepInsideWorldX;
+
+        if (crossedThroughGate || alreadyDeepInside)
+        {
+            hasPlayerEnteredArena = true;
+            Debug.Log("[BossAttackController] Player đã bước qua cổng vào khu vực Boss -> Kích hoạt AI Boss!");
+        }
+    }
+
+    private bool IsPositionOutsideArenaGate(Vector3 worldPos)
+    {
+        if (arenaGateTransform == null) return false;
+        Vector3 localPos = arenaGateTransform.InverseTransformPoint(worldPos);
+        // Phía ngoài cổng theo trục +X của cổng (khu Nhà thờ / cầu thang)
+        return Mathf.Abs(localPos.z) <= gateHalfOpeningWidth + 1.5f && localPos.x > bossGateMaxLocalX + 0.6f;
+    }
+
+    private bool IsBossNearGateBoundary()
+    {
+        if (arenaGateTransform == null) return false;
+        Vector3 localBoss = arenaGateTransform.InverseTransformPoint(transform.position);
+        return Mathf.Abs(localBoss.z) <= gateHalfOpeningWidth && localBoss.x >= bossGateMaxLocalX - 0.35f;
+    }
+
+    private Vector3 ClampBossPositionAtGate(Vector3 candidateWorldPos)
+    {
+        if (!enforceArenaGateBoundary || arenaGateTransform == null)
+        {
+            return candidateWorldPos;
+        }
+
+        Vector3 localPos = arenaGateTransform.InverseTransformPoint(candidateWorldPos);
+        if (Mathf.Abs(localPos.z) <= gateHalfOpeningWidth && localPos.x > bossGateMaxLocalX)
+        {
+            localPos.x = bossGateMaxLocalX;
+            Vector3 clampedWorld = arenaGateTransform.TransformPoint(localPos);
+            clampedWorld.y = candidateWorldPos.y;
+            return clampedWorld;
+        }
+
+        return candidateWorldPos;
     }
 
     private bool IsSelfOrPlayerCollider(Collider col)
@@ -385,7 +492,7 @@ public class BossAttackController : MonoBehaviour
             }
         }
 
-        Vector3 nextPos = curPos + desiredDir * stepDist;
+        Vector3 nextPos = ClampBossPositionAtGate(curPos + desiredDir * stepDist);
         if (TryFindGroundY(nextPos, out float groundY))
         {
             nextPos.y = Mathf.MoveTowards(curPos.y, groundY, 14f * Time.deltaTime);

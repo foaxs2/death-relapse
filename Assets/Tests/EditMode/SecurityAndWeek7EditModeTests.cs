@@ -339,6 +339,98 @@ public class SecurityAndWeek7EditModeTests
         Assert.AreEqual(1, footstepCount, "Khi đã chết không được phát tiếng bước chân.");
     }
 
+    [Test]
+    public void BossAttackController_WaitsOutsideGateAndClampsExitAtGate()
+    {
+        GameObject gateGo = new GameObject("TestBossGate");
+        gateGo.transform.position = new Vector3(-2.40f, 2.35f, 20.50f);
+        gateGo.transform.rotation = Quaternion.Euler(0f, 345f, 0f);
+        createdObjects.Add(gateGo);
+
+        GameObject playerGo = new GameObject("TestKnight");
+        playerGo.transform.position = new Vector3(16.43f, 4.11f, 10.67f); // Ở khu Nhà thờ
+        createdObjects.Add(playerGo);
+
+        GameObject bossGo = new GameObject("TestBoss");
+        bossGo.transform.position = new Vector3(-31.80f, 2.61f, -5.55f);
+        createdObjects.Add(bossGo);
+
+        BossAttackController boss = bossGo.AddComponent<BossAttackController>();
+        SetPrivateField(boss, "player", playerGo.transform);
+        SetPrivateField(boss, "arenaGateTransform", gateGo.transform);
+        SetPrivateField(boss, "snapToTerrain", false);
+
+        MethodInfo updateAi = typeof(BossAttackController).GetMethod("UpdateAutoAI", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(updateAi);
+
+        // 1. Khi Player vẫn ở Nhà thờ (chưa qua cổng): Boss không được phát hiện hay di chuyển
+        Vector3 initialBossPos = bossGo.transform.position;
+        updateAi.Invoke(boss, null);
+        Assert.IsFalse(boss.HasPlayerEnteredArena, "Player ở khu Nhà thờ thì Boss chưa được phát hiện.");
+        Assert.AreEqual(initialBossPos, bossGo.transform.position, "Boss phải đứng yên khi Player chưa qua cổng.");
+
+        // 2. Khi Player bước qua cổng vào bên trong bãi Boss: Boss lập tức phát hiện
+        playerGo.transform.position = new Vector3(-4.0f, 2.35f, 20.1f);
+        updateAi.Invoke(boss, null);
+        Assert.IsTrue(boss.HasPlayerEnteredArena, "Khi Player bước qua cổng vào bãi Boss, AI Boss phải kích hoạt.");
+
+        // 3. Nếu Boss cố đi ra phía ngoài cổng -> ClampBossPositionAtGate phải giữ Boss ở bên trong cổng
+        MethodInfo clampMethod = typeof(BossAttackController).GetMethod("ClampBossPositionAtGate", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.IsNotNull(clampMethod);
+        Vector3 outsideGateCandidate = new Vector3(1.5f, 2.35f, 21.0f);
+        Vector3 clampedPos = (Vector3)clampMethod.Invoke(boss, new object[] { outsideGateCandidate });
+        Vector3 clampedLocal = gateGo.transform.InverseTransformPoint(clampedPos);
+        Assert.LessOrEqual(clampedLocal.x, -1.34f, "Boss tuyệt đối không được vượt qua mép cổng ra khu vực Nhà thờ.");
+    }
+
+    [Test]
+    public void PauseMenuOverlay_DisplaysOnlyTamDungText_AndTogglesTimeScale()
+    {
+        GameObject canvasGo = new GameObject("TestCanvas", typeof(Canvas));
+        createdObjects.Add(canvasGo);
+
+        PauseMenuOverlay pauseOverlay = canvasGo.AddComponent<PauseMenuOverlay>();
+        MethodInfo awakeMethod = typeof(PauseMenuOverlay).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic);
+        awakeMethod?.Invoke(pauseOverlay, null);
+
+        float prevTimeScale = Time.timeScale;
+        bool prevAudioPause = AudioListener.pause;
+        try
+        {
+            pauseOverlay.PauseGame();
+            Assert.IsTrue(pauseOverlay.IsPaused);
+            Assert.AreEqual(0f, Time.timeScale, 0.001f);
+
+            FieldInfo rootField = typeof(PauseMenuOverlay).GetField("pauseOverlayRoot", BindingFlags.Instance | BindingFlags.NonPublic);
+            GameObject root = rootField?.GetValue(pauseOverlay) as GameObject;
+            Assert.IsNotNull(root);
+            Assert.IsTrue(root.activeSelf);
+
+            Component[] allComps = root.GetComponentsInChildren<Component>(true);
+            List<string> foundTexts = new List<string>();
+            for (int i = 0; i < allComps.Length; i++)
+            {
+                if (allComps[i] == null) continue;
+                PropertyInfo textProp = allComps[i].GetType().GetProperty("text", BindingFlags.Instance | BindingFlags.Public);
+                if (textProp != null && textProp.PropertyType == typeof(string))
+                {
+                    foundTexts.Add(textProp.GetValue(allComps[i]) as string);
+                }
+            }
+            Assert.AreEqual(1, foundTexts.Count, "Canvas Tạm Dừng chỉ được có đúng 1 đối tượng chữ.");
+            Assert.AreEqual("Tạm Dừng", foundTexts[0], "Nội dung chữ bắt buộc phải là 'Tạm Dừng' và không có chữ phụ.");
+
+            pauseOverlay.ResumeGame();
+            Assert.IsFalse(pauseOverlay.IsPaused);
+            Assert.AreEqual(1f, Time.timeScale, 0.001f);
+        }
+        finally
+        {
+            Time.timeScale = prevTimeScale;
+            AudioListener.pause = prevAudioPause;
+        }
+    }
+
     private void BackupAndClearPersistentFiles()
     {
         fileBackups.Clear();

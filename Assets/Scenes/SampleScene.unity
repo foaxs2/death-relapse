@@ -2961,6 +2961,13 @@ MonoBehaviour:
   attackRange: 2.8
   attackCooldown: 1.5
   walkSpeedParam: Speed
+  enforceArenaGateBoundary: 1
+  arenaGateTransform: {fileID: 1676182830}
+  arenaGateObjectName: Fix2_GateBoss
+  playerGateEntryLocalX: -1.2
+  arenaDeepInsideWorldX: -4.5
+  gateHalfOpeningWidth: 3.2
+  bossGateMaxLocalX: -1.35
   animator: {fileID: 481622104}
   player: {fileID: 572920471}
   swordHitbox: {fileID: 1309775094}
@@ -4823,6 +4830,7 @@ GameObject:
   - component: {fileID: 896970790}
   - component: {fileID: 896970789}
   - component: {fileID: 896970793}
+  - component: {fileID: 896970794}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -4939,6 +4947,26 @@ MonoBehaviour:
   playerHealth: {fileID: 0}
   bossAttackController: {fileID: 0}
   battleLoopManager: {fileID: 0}
+--- !u!114 &896970794
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 896970788}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e83d7c16ef832aa49b5b69fc6851bab9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: DeathRelapse.Runtime::PauseMenuOverlay
+  playerMovement: {fileID: 572920472}
+  playerAttackController: {fileID: 572920477}
+  playerDodge: {fileID: 572920474}
+  playerHealth: {fileID: 572920476}
+  bossAttackController: {fileID: 481622105}
+  battleLoopManager: {fileID: 1999670355}
+  controlsOverlay: {fileID: 896970793}
+  pauseOverlayRoot: {fileID: 0}
 --- !u!64 &906631192
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -8199,6 +8227,11 @@ Transform:
   - {fileID: 2144237577}
   m_Father: {fileID: 1345072704}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!4 &1676182830 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -7392982955417022117, guid: 018ec077320317649ba695eb6570b711, type: 3}
+  m_PrefabInstance: {fileID: 2040121561}
+  m_PrefabAsset: {fileID: 0}
 --- !u!64 &1698712865
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -10472,14 +10505,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2027819248}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -12, y: 0.53714716, z: 29.5}
+  m_LocalRotation: {x: -0, y: -0.9474282, z: -0, w: 0.3199684}
+  m_LocalPosition: {x: -41.755844, y: 2.35, z: -6.31}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 481622103}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -142.678, z: 0}
 --- !u!64 &2034136265
 MeshCollider:
   m_ObjectHideFlags: 0
