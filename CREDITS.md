@@ -46,18 +46,23 @@ Tài liệu này ghi nhận toàn bộ các tài nguyên bên ngoài (3D model, 
 
 ---
 
-## 4. Audio (Combat SFX)
+## 4. Audio (Combat & Movement SFX)
 
-- **Các tệp âm thanh (`Assets/Audio/SFX/`):** `sfx_sword_slash.wav`, `sfx_dodge_roll.wav`, `sfx_player_hurt.wav`, `sfx_boss_windup.wav`, `sfx_boss_impact.wav`
-- **Tác giả / Nguồn:** Tự tổng hợp dạng sóng PCM 16-bit bằng script nội bộ `Tools/generate_combat_sfx.py` của dự án Death Relapse.
-- **Loại giấy phép:** Tự tạo (Original / CC0 — không chứa tài nguyên bản quyền bên ngoài).
+Tất cả các hiệu ứng âm thanh dưới đây được đặt tại `Assets/Audio/SFX/` và sử dụng theo **Pixabay Content License** ([Pixabay License Summary](https://pixabay.com/service/license-summary/) – miễn phí cho sử dụng thương mại và phi thương mại, không bắt buộc ghi công nhưng được liệt kê đầy đủ để minh bạch học thuật):
 
-
-- Hiệu ứng âm thanh "sword slashing game sound effect (2)" – Tác giả: gargamel10 (Nguồn: Pixabay)
-- Hiệu ứng âm thanh "sword slashing game sound effect (1)" – Tác giả: gargamel10 (Nguồn: Pixabay)
-- Hiệu ứng âm thanh "Ground Impact" – Tác giả: Universfield (Nguồn: Pixabay) (player Roll sound)
-- Hiệu ứng âm thanh "Fast Body Fall Impact" – Tác giả: Universfield (Nguồn: Pixabay) (player_Hurt)
-- Hiệu ứng âm thanh "Heavy greatsword slash in the air (1)" – Tác giả: Yodguard (Nguồn: Pixabay) (BossSlash_1)
-- Hiệu ứng âm thanh "Whoosh Heavy Wind" – Tác giả: SoundReality (Nguồn: Pixabay) (Boss_Windup)
-- Hiệu ứng âm thanh "Heavy Whoosh 10" – Tác giả: DRAGON-STUDIO (Nguồn: Pixabay) (BossSlash_2)
-- Hiệu ứng âm thanh "Footsteps Dirt Gravel" – Tác giả: freesound_community (Nguồn: Pixabay) (player footstep)
+- **`Slash1.mp3`** – *"sword slashing game sound effect (1)"*
+  - **Tác giả:** gargamel10 | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Đòn chém 1 của Knight.
+- **`Slash2.mp3`** – *"sword slashing game sound effect (2)"*
+  - **Tác giả:** gargamel10 | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Đòn chém 2 trong combo của Knight.
+- **`Roll.mp3`** – *"Ground Impact"*
+  - **Tác giả:** Universfield | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Âm thanh lăn né (Roll) của Knight.
+- **`Player Hurt.mp3`** – *"Fast Body Fall Impact"*
+  - **Tác giả:** Universfield | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Âm thanh Knight bị trúng đòn.
+- **`FootSteps_Knight.mp3`** – *"Footsteps Dirt Gravel"*
+  - **Tác giả:** freesound_community | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Tiếng bước chân chạm đất đồng bộ Animation của Knight (Boss không có tiếng bước chân).
+- **`Boss Windup.mp3`** – *"Whoosh Heavy Wind"*
+  - **Tác giả:** SoundReality | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Âm thanh gồng báo đòn của Boss (phát đồng đều cho cả Group A và Group B).
+- **`BossSlash_1.mp3`** – *"Heavy greatsword slash in the air (1)"*
+  - **Tác giả:** Yodguard | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Âm thanh đòn chém thường (`Red Attack`) của Boss.
+- **`BossSlash_2.mp3`** – *"Heavy Whoosh 10"*
+  - **Tác giả:** DRAGON-STUDIO | **Nguồn:** [Pixabay](https://pixabay.com/) | **Mục đích:** Âm thanh đòn bổ mạnh xung kích (`Strong Red Attack`) của Boss.

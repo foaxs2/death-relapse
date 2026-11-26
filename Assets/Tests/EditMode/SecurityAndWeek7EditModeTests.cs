@@ -210,6 +210,135 @@ public class SecurityAndWeek7EditModeTests
             "File telemetry_unsent_queue.jsonl phải được xóa sạch sau khi đã gửi bản ghi hợp lệ và loại bỏ bản ghi giả mạo.");
     }
 
+    [Test]
+    public void CombatAudioController_TrimsSilenceAndSlicesFootsteps_WithoutBossFootsteps()
+    {
+        const int sampleRate = 24000;
+        // 1. Tạo clip giả lập có 0.25s im lặng đầu + 0.20s xung âm thanh để kiểm tra cắt khoảng lặng
+        int silenceSamples = (int)(0.25f * sampleRate);
+        int activeSamples = (int)(0.20f * sampleRate);
+        float[] slashData = new float[silenceSamples + activeSamples];
+        for (int i = silenceSamples; i < slashData.Length; i++)
+        {
+            slashData[i] = 0.6f * Mathf.Sin(2f * Mathf.PI * 440f * i / sampleRate);
+        }
+        AudioClip rawSlashClip = AudioClip.Create("TestRawSlash", slashData.Length, 1, sampleRate, false);
+        rawSlashClip.SetData(slashData, 0);
+
+        // 2. Tạo clip bước chân giả lập dài 2.0s có 3 tiếng bước chân tách biệt tại 0.4s, 1.0s, 1.6s
+        float[] footstepData = new float[sampleRate * 2];
+        float[] stepTimes = { 0.4f, 1.0f, 1.6f };
+        foreach (float st in stepTimes)
+        {
+            int center = (int)(st * sampleRate);
+            int halfWidth = (int)(0.05f * sampleRate);
+            for (int i = center - halfWidth; i <= center + halfWidth; i++)
+            {
+                footstepData[i] = 0.12f * Mathf.Sin(2f * Mathf.PI * 180f * i / sampleRate);
+            }
+        }
+        AudioClip rawFootstepClip = AudioClip.Create("TestRawFootsteps", footstepData.Length, 1, sampleRate, false);
+        rawFootstepClip.SetData(footstepData, 0);
+
+        GameObject audioGo = new GameObject("TestCombatAudioController");
+        createdObjects.Add(audioGo);
+
+        try
+        {
+            CombatAudioController audioController = audioGo.AddComponent<CombatAudioController>();
+            SetPrivateField(audioController, "swordSlash1Clip", rawSlashClip);
+            SetPrivateField(audioController, "knightFootstepsClip", rawFootstepClip);
+
+            MethodInfo awakeMethod = typeof(CombatAudioController).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic);
+            awakeMethod?.Invoke(audioController, null);
+
+            // Kiểm tra đã cắt bỏ khoảng lặng đầu của Slash1 (ngắn hơn đáng kể so với 0.45s gốc)
+            FieldInfo preparedSlash1Field = typeof(CombatAudioController).GetField("preparedSlash1", BindingFlags.Instance | BindingFlags.NonPublic);
+            AudioClip preparedSlash1 = preparedSlash1Field?.GetValue(audioController) as AudioClip;
+            Assert.IsNotNull(preparedSlash1, "Prepared Slash1 không được null.");
+            Assert.Less(preparedSlash1.length, 0.30f, "Phải cắt bỏ được 0.25s khoảng lặng đầu clip.");
+
+            // Kiểm tra tách đúng 3 biến thể bước chân đơn lẻ (~0.22s mỗi bước) thay vì giữ nguyên clip dài 2.0s
+            Assert.AreEqual(3, audioController.FootstepVariantCount,
+                "Phải trích xuất đúng 3 bước chân đơn lẻ từ clip nhiều bước.");
+            FieldInfo preparedFootstepsField = typeof(CombatAudioController).GetField("preparedFootsteps", BindingFlags.Instance | BindingFlags.NonPublic);
+            AudioClip[] preparedFootsteps = preparedFootstepsField?.GetValue(audioController) as AudioClip[];
+            Assert.IsNotNull(preparedFootsteps);
+            for (int i = 0; i < preparedFootsteps.Length; i++)
+            {
+                Assert.Less(preparedFootsteps[i].length, 0.35f, $"Mỗi bước chân tách ra phải ngắn gọn ({preparedFootsteps[i].length:F2}s).");
+            }
+
+            // Kiểm tra Boss KHÔNG có sự kiện hay âm thanh bước chân trên BossAttackController
+            Assert.IsNull(typeof(BossAttackController).GetEvent("OnFootstepLanded"),
+                "BossAttackController tuyệt đối không được có sự kiện bước chân.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(rawSlashClip);
+            UnityEngine.Object.DestroyImmediate(rawFootstepClip);
+        }
+    }
+
+    [Test]
+    public void PlayerAnimationEventRelay_BlocksFootstepsWhenIdleOrLocked()
+    {
+        GameObject knightGo = new GameObject("TestKnightRelay");
+        createdObjects.Add(knightGo);
+
+        PlayerMovement movement = knightGo.AddComponent<PlayerMovement>();
+        PlayerDodge dodge = knightGo.AddComponent<PlayerDodge>();
+        PlayerHealth health = knightGo.AddComponent<PlayerHealth>();
+        PlayerAttackController attack = knightGo.AddComponent<PlayerAttackController>();
+        PlayerAnimationEventRelay relay = knightGo.AddComponent<PlayerAnimationEventRelay>();
+
+        MethodInfo relayAwake = typeof(PlayerAnimationEventRelay).GetMethod("Awake", BindingFlags.Instance | BindingFlags.NonPublic);
+        relayAwake?.Invoke(relay, null);
+
+        // Chặn kiểm tra CharacterController.velocity trong EditMode (khi chưa vào PlayMode velocity = 0)
+        SetPrivateField(relay, "characterController", null);
+
+        int footstepCount = 0;
+        relay.OnFootstepLanded += () => footstepCount++;
+
+        // 1. Đứng yên (CurrentInputDirection == zero) -> KHÔNG được phát tiếng bước chân
+        SetPrivateField(movement, "currentInputDirection", Vector3.zero);
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(0, footstepCount, "Khi đứng yên không được phát tiếng bước chân.");
+
+        // 2. Có hướng di chuyển và đang ở trạng thái chạy hợp lệ -> PHÁT đúng 1 tiếng bước chân
+        SetPrivateField(movement, "currentInputDirection", Vector3.forward);
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(1, footstepCount, "Khi đang chạy hợp lệ phải phát 1 tiếng bước chân.");
+
+        // 3. Gọi trùng ngay lập tức (trong minFootstepIntervalSeconds) -> BỊ CHẶN chống phát đúp
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(1, footstepCount, "Không được phát đúp bước chân liên tiếp dưới ngưỡng minFootstepIntervalSeconds.");
+
+        // 4. Đang bị khóa di chuyển (Overlay / Stun / Roll) -> KHÔNG được phát
+        SetPrivateField(relay, "lastFootstepTime", -999f);
+        movement.SetMovementLocked(true);
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(1, footstepCount, "Khi IsMovementLocked=true không được phát tiếng bước chân.");
+
+        // 5. Đang chém hoặc đang lăn -> KHÔNG được phát
+        movement.SetMovementLocked(false);
+        SetPrivateField(attack, "isAttacking", true);
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(1, footstepCount, "Khi đang vung kiếm không được phát tiếng bước chân.");
+
+        SetPrivateField(attack, "isAttacking", false);
+        SetPrivateField(dodge, "isRolling", true);
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(1, footstepCount, "Khi đang lăn né không được phát tiếng bước chân.");
+
+        // 6. Đã chết -> KHÔNG được phát
+        SetPrivateField(dodge, "isRolling", false);
+        SetPrivateField(health, "isDead", true);
+        relay.OnPlayerFootstep();
+        Assert.AreEqual(1, footstepCount, "Khi đã chết không được phát tiếng bước chân.");
+    }
+
     private void BackupAndClearPersistentFiles()
     {
         fileBackups.Clear();
