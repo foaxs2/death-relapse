@@ -20,8 +20,8 @@ MonoBehaviour:
   radius: 10
   arcAngleDegrees: 28
   facingOffsetDegrees: 0
-  shapeType: 0
-  boxWidth: 1.6
-  zoneForwardOffset: 0
+  shapeType: 1
+  boxWidth: 1.8
+  zoneForwardOffset: 1
   groundShockwave: 1
   animationSecondsToImpact: 1

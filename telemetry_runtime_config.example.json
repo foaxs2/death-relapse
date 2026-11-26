@@ -1,0 +1,4 @@
+{
+  "telemetryEndpoint": "http://127.0.0.1:8080/api/telemetry",
+  "hmacSecretKey": "REPLACE_WITH_LOCAL_OR_PROXY_SHARED_SECRET"
+}

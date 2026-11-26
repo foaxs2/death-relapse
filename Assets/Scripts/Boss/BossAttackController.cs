@@ -87,6 +87,16 @@ public class BossAttackController : MonoBehaviour
     /// </summary>
     public event Action<BossAttackData, bool> AttackResolved;
 
+    /// <summary>
+    /// Sự kiện phát ra khi Boss bắt đầu pha gồng đòn (kích hoạt đồng đều cho cả Group A và Group B để phát SFX công bằng).
+    /// </summary>
+    public event Action<BossAttackData> OnAttackWindupStarted;
+
+    /// <summary>
+    /// Sự kiện phát ra khi đòn Boss mở cửa sổ va chạm / đập đất (phục vụ SFX va chạm).
+    /// </summary>
+    public event Action<BossAttackData> OnAttackImpact;
+
     // Trạng thái đòn đánh & AI
     private bool isAttacking = false;
     private bool hitWindowOpened = false;
@@ -102,6 +112,7 @@ public class BossAttackController : MonoBehaviour
     private BossHealth bossHealth;
     private PlayerHealth playerHealth;
     private int walkSpeedHash;
+    private bool hasWalkSpeedParam;
     private PlayerDodge playerDodge;
     private Collider playerCollider;
 
@@ -191,6 +202,7 @@ public class BossAttackController : MonoBehaviour
         if (!string.IsNullOrEmpty(walkSpeedParam))
         {
             walkSpeedHash = Animator.StringToHash(walkSpeedParam);
+            CacheWalkSpeedParamAvailability();
         }
 
         HideTelegraphVisuals();
@@ -391,18 +403,27 @@ public class BossAttackController : MonoBehaviour
         }
     }
 
-    private void UpdateWalkAnimator(float currentSpeed)
+    private void CacheWalkSpeedParamAvailability()
     {
+        hasWalkSpeedParam = false;
         if (animator == null || walkSpeedHash == 0 || animator.runtimeAnimatorController == null) return;
 
-        foreach (AnimatorControllerParameter param in animator.parameters)
+        // Chỉ duyệt animator.parameters 1 lần ở Awake thay vì mỗi frame trong Update để giữ 0 GC Alloc
+        AnimatorControllerParameter[] parameters = animator.parameters;
+        for (int i = 0; i < parameters.Length; i++)
         {
-            if (param.nameHash == walkSpeedHash && param.type == AnimatorControllerParameterType.Float)
+            if (parameters[i].nameHash == walkSpeedHash && parameters[i].type == AnimatorControllerParameterType.Float)
             {
-                animator.SetFloat(walkSpeedHash, currentSpeed);
+                hasWalkSpeedParam = true;
                 break;
             }
         }
+    }
+
+    private void UpdateWalkAnimator(float currentSpeed)
+    {
+        if (!hasWalkSpeedParam || animator == null) return;
+        animator.SetFloat(walkSpeedHash, currentSpeed);
     }
 
     private void OnDisable()
@@ -570,6 +591,7 @@ public class BossAttackController : MonoBehaviour
         }
         attackTriggerRealtime = Time.realtimeSinceStartup;
         UpdateWalkAnimator(0f);
+        OnAttackWindupStarted?.Invoke(currentAttack);
 
         // 3. Chuẩn bị Mesh bám địa hình và hiện vùng cảnh báo (chỉ hiện khi showTelegraphVisuals == true)
         if (showTelegraphVisuals)
@@ -745,6 +767,7 @@ public class BossAttackController : MonoBehaviour
         // Ẩn vùng cảnh báo NGAY khi kiếm bắt đầu có sát thương
         HideTelegraphVisuals();
         ShowGroundCrack();
+        OnAttackImpact?.Invoke(currentAttack);
 
         if (swordHitbox != null)
         {
@@ -1284,6 +1307,9 @@ public class BossAttackController : MonoBehaviour
             bossForwardXZ.Normalize();
 
             forward = Quaternion.AngleAxis(currentAttack.FacingOffsetDegrees, Vector3.up) * bossForwardXZ;
+            // Đồng bộ ZoneForwardOffset với lockedCenter để Gizmo xem trước không bị lệch phạm vi đánh
+            center = new Vector3(transform.position.x, transform.position.y + FloorYOffset, transform.position.z)
+                     + forward * currentAttack.ZoneForwardOffset;
             radius = currentAttack.Radius;
             arcAngle = currentAttack.ArcAngleDegrees;
             Gizmos.color = new Color(1f, 0.5f, 0.1f, 0.85f); // Màu cam xem trước

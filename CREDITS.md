@@ -43,3 +43,21 @@ Tài liệu này ghi nhận toàn bộ các tài nguyên bên ngoài (3D model, 
 **Moonbrand (Early 14th C Arming Sword)** by [The Oakeshott Institute](https://sketchfab.com/oakeshott)
   - Source: [Sketchfab](https://sketchfab.com/3d-models/moonbrand-early-14th-c-arming-sword-80fa91fc8c974fd0acd2a55cc513edec)
   - License: [Creative Commons Attribution 3.0 Unported (CC BY 3.0)](http://creativecommons.org/licenses/by/3.0/)
+
+---
+
+## 4. Audio (Combat SFX)
+
+- **Các tệp âm thanh (`Assets/Audio/SFX/`):** `sfx_sword_slash.wav`, `sfx_dodge_roll.wav`, `sfx_player_hurt.wav`, `sfx_boss_windup.wav`, `sfx_boss_impact.wav`
+- **Tác giả / Nguồn:** Tự tổng hợp dạng sóng PCM 16-bit bằng script nội bộ `Tools/generate_combat_sfx.py` của dự án Death Relapse.
+- **Loại giấy phép:** Tự tạo (Original / CC0 — không chứa tài nguyên bản quyền bên ngoài).
+
+
+- Hiệu ứng âm thanh "sword slashing game sound effect (2)" – Tác giả: gargamel10 (Nguồn: Pixabay)
+- Hiệu ứng âm thanh "sword slashing game sound effect (1)" – Tác giả: gargamel10 (Nguồn: Pixabay)
+- Hiệu ứng âm thanh "Ground Impact" – Tác giả: Universfield (Nguồn: Pixabay) (player Roll sound)
+- Hiệu ứng âm thanh "Fast Body Fall Impact" – Tác giả: Universfield (Nguồn: Pixabay) (player_Hurt)
+- Hiệu ứng âm thanh "Heavy greatsword slash in the air (1)" – Tác giả: Yodguard (Nguồn: Pixabay) (BossSlash_1)
+- Hiệu ứng âm thanh "Whoosh Heavy Wind" – Tác giả: SoundReality (Nguồn: Pixabay) (Boss_Windup)
+- Hiệu ứng âm thanh "Heavy Whoosh 10" – Tác giả: DRAGON-STUDIO (Nguồn: Pixabay) (BossSlash_2)
+- Hiệu ứng âm thanh "Footsteps Dirt Gravel" – Tác giả: freesound_community (Nguồn: Pixabay) (player footstep)

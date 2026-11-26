@@ -112,6 +112,11 @@ public class PlayerAttackController : MonoBehaviour
     /// </summary>
     public event Action<BossHealth, float> OnHitBoss;
 
+    /// <summary>
+    /// Sự kiện phát ra mỗi khi nhát vung kiếm bắt đầu mở cửa sổ chém (phục vụ âm thanh SFX, 0 GC alloc).
+    /// </summary>
+    public event Action<int> OnAttackSwingStarted;
+
     private void Awake()
     {
         playerMovement = GetComponent<PlayerMovement>();
@@ -280,6 +285,11 @@ public class PlayerAttackController : MonoBehaviour
 
         hitWindowOpened = true;
         hasResolvedHitThisSwing = false;
+
+        int activeStepIndex = steps != null && steps.Length > 0
+            ? (nextStepIndex - 1 + steps.Length) % steps.Length
+            : 0;
+        OnAttackSwingStarted?.Invoke(activeStepIndex);
 
         if (swordHitbox != null)
         {

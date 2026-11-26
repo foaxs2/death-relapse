@@ -48,6 +48,9 @@ public class BattleLoopManager : MonoBehaviour
     [Tooltip("Dòng chữ trạng thái đồng bộ (TextMeshPro, có thể để trống)")]
     [SerializeField] private TMP_Text surveyStatusText;
 
+    [Tooltip("Dòng hướng dẫn phía trên khảo sát nhắc người chơi chọn 1 lý do để mở khóa nút Replay")]
+    [SerializeField] private TMP_Text surveyInstructionText;
+
     [Header("Map Boundary Settings")]
     [Tooltip("Độ cao Y tối thiểu: nếu nhân vật rơi xuống thấp hơn mức này sẽ tự động reset màn chơi")]
     [SerializeField] private float fallOutOfMapY = -5f;
@@ -76,6 +79,8 @@ public class BattleLoopManager : MonoBehaviour
 
     private const string SurveyValueSkill = "PlayerSkill_Timing";
     private const string SurveyValueTelegraph = "BossTelegraph_Unclear";
+    private const string SurveyUnlockHintMessage = "Vui lòng chọn 1 lý do bên dưới để mở khóa nút Chơi lại (Replay)";
+    private const string DefeatTitleMessage = "THẤT BẠI";
     private GameObject runtimeGeneratedOverlay;
 
     public bool IsBattleEnded => isBattleEnded;
@@ -125,6 +130,7 @@ public class BattleLoopManager : MonoBehaviour
 
         if (defeatPanel != null)
         {
+            PolishDefeatPanelTitle();
             defeatPanel.SetActive(false);
         }
 
@@ -171,6 +177,8 @@ public class BattleLoopManager : MonoBehaviour
         if (telemetryLogger != null)
         {
             telemetryLogger.LogSessionStart(initialPlayerHP, initialBossHP);
+            // Vá TC-12: gửi bù hàng đợi ngoại tuyến ngay khi bắt đầu trận mới
+            telemetryLogger.FlushOfflineQueueAsync();
         }
     }
 
@@ -234,12 +242,18 @@ public class BattleLoopManager : MonoBehaviour
 
         if (defeatPanel != null)
         {
+            PolishDefeatPanelTitle();
             defeatPanel.SetActive(true);
             ShowSurvey(ResolveReplayButton(defeatPanel, defeatReplayButton));
         }
         else
         {
-            ShowFallbackEndScreen("YOU DIED", new Color(0.85f, 0.15f, 0.15f, 1f));
+            ShowFallbackEndScreen(DefeatTitleMessage, new Color(0.85f, 0.15f, 0.15f, 1f), true);
+        }
+
+        if (telemetryLogger != null)
+        {
+            telemetryLogger.FlushOfflineQueueAsync();
         }
     }
 
@@ -290,25 +304,38 @@ public class BattleLoopManager : MonoBehaviour
         }
         else
         {
-            ShowFallbackEndScreen("VICTORY", new Color(1f, 0.82f, 0.2f, 1f));
+            ShowFallbackEndScreen("CHIẾN THẮNG", new Color(1f, 0.82f, 0.2f, 1f), false);
+        }
+
+        if (telemetryLogger != null)
+        {
+            telemetryLogger.FlushOfflineQueueAsync();
         }
     }
 
     /// <summary>
-    /// Khởi động lại trận đấu bằng cách nạp lại Scene hiện tại.
+    /// Khởi động lại trận đấu bằng cách nạp lại Scene hiện tại và kích hoạt gửi bù hàng đợi ngoại tuyến (TC-12).
     /// Được gọi khi bấm nút "Chơi lại" trên màn hình Thắng/Thua hoặc khi rơi khỏi bản đồ.
     /// </summary>
     public void RestartBattle()
     {
-        Time.timeScale = 1f;
-        Scene activeScene = SceneManager.GetActiveScene();
-        SceneManager.LoadScene(activeScene.buildIndex);
+        if (telemetryLogger != null)
+        {
+            telemetryLogger.FlushOfflineQueueAsync();
+        }
+
+        if (Application.isPlaying)
+        {
+            Time.timeScale = 1f;
+            Scene activeScene = SceneManager.GetActiveScene();
+            SceneManager.LoadScene(activeScene.buildIndex);
+        }
     }
 
     /// <summary>
     /// Tự động dựng màn hình kết thúc kèm nút bấm "CHƠI LẠI" nếu chưa gán Panel trong Inspector.
     /// </summary>
-    private void ShowFallbackEndScreen(string titleMessage, Color titleColor)
+    private void ShowFallbackEndScreen(string titleMessage, Color titleColor, bool isDefeat)
     {
         if (runtimeGeneratedOverlay != null)
         {
@@ -368,7 +395,7 @@ public class BattleLoopManager : MonoBehaviour
         replayBtn.targetGraphic = buttonImage;
         replayBtn.onClick.AddListener(RestartBattle);
 
-        if (titleMessage == "YOU DIED")
+        if (isDefeat)
         {
             ShowSurvey(replayBtn);
         }
@@ -416,6 +443,12 @@ public class BattleLoopManager : MonoBehaviour
 
         surveyButtonA.interactable = true;
         surveyButtonB.interactable = true;
+        EnsureSurveyInstructionText();
+        if (surveyInstructionText != null)
+        {
+            surveyInstructionText.text = SurveyUnlockHintMessage;
+            surveyInstructionText.gameObject.SetActive(true);
+        }
         if (surveyStatusText != null)
         {
             surveyStatusText.text = string.Empty;
@@ -424,6 +457,62 @@ public class BattleLoopManager : MonoBehaviour
         surveyRoot.SetActive(true);
         // Đảm bảo khối khảo sát vẽ phía trên bảng Thắng/Thua cùng cấp
         surveyRoot.transform.SetAsLastSibling();
+    }
+
+    private void PolishDefeatPanelTitle()
+    {
+        if (defeatPanel == null) return;
+        TMP_Text[] texts = defeatPanel.GetComponentsInChildren<TMP_Text>(true);
+        for (int i = 0; i < texts.Length; i++)
+        {
+            if (texts[i] != null && texts[i].text != null && texts[i].text.Contains("Tèo"))
+            {
+                texts[i].text = DefeatTitleMessage;
+            }
+        }
+    }
+
+    private void EnsureSurveyInstructionText()
+    {
+        if (surveyRoot == null) return;
+
+        if (surveyInstructionText == null)
+        {
+            Transform existing = surveyRoot.transform.Find("SurveyUnlockHintText");
+            if (existing != null)
+            {
+                surveyInstructionText = existing.GetComponent<TMP_Text>();
+            }
+        }
+
+        if (surveyInstructionText != null) return;
+
+        // Tự tạo dòng hướng dẫn gọn đẹp phía trên SurveyRoot nếu trong Scene chưa gắn sẵn
+        GameObject hintObj = new GameObject("SurveyUnlockHintText", typeof(RectTransform));
+        hintObj.transform.SetParent(surveyRoot.transform, false);
+
+        RectTransform hintRect = hintObj.GetComponent<RectTransform>();
+        hintRect.anchorMin = new Vector2(0.5f, 1f);
+        hintRect.anchorMax = new Vector2(0.5f, 1f);
+        hintRect.pivot = new Vector2(0.5f, 0.5f);
+        hintRect.anchoredPosition = new Vector2(0f, 38f);
+        hintRect.sizeDelta = new Vector2(920f, 44f);
+
+        TextMeshProUGUI hintTmp = hintObj.AddComponent<TextMeshProUGUI>();
+        TMP_Text referenceTmp = surveyRoot.GetComponentInChildren<TMP_Text>(true);
+        if (referenceTmp != null && referenceTmp.font != null)
+        {
+            hintTmp.font = referenceTmp.font;
+        }
+
+        hintTmp.text = SurveyUnlockHintMessage;
+        hintTmp.fontSize = 24f;
+        hintTmp.fontStyle = FontStyles.Italic;
+        hintTmp.alignment = TextAlignmentOptions.Center;
+        hintTmp.color = new Color(0.96f, 0.84f, 0.48f, 1f);
+        hintTmp.textWrappingMode = TextWrappingModes.Normal;
+
+        surveyInstructionText = hintTmp;
     }
 
     private void OnClickSurveyA() => OnSurveyAnswered(SurveyValueSkill);

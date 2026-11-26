@@ -73,3 +73,6 @@ crashlytics-build.properties
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local telemetry runtime secrets (do not commit real endpoints or HMAC keys)
+telemetry_runtime_config.json

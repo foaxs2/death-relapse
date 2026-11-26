@@ -617,6 +617,6 @@ File này do AI cập nhật sau mỗi lần làm việc (xem quy tắc ở `GEM
 - **Quyết định kỹ thuật và lý do:** Giữ nguyên 12 trường cấp 1 trong JSONL và chỉ nối thêm `timestampUnix`, `recordHash` ở cuối object để tương thích ngược 100% với `JsonUtility` và bài test Tuần 6. Dùng `InputAction` bật/tắt trong `OnEnable`/`OnDisable` chuẩn Input System mới. Dùng mảng `float[]` cấp phát sẵn và cache `AnimatorControllerParameter` để đảm bảo 0 GC Alloc trong vòng lặp chiến đấu.
 - **Chưa kiểm chứng / rủi ro:** Đã biên dịch sạch trong Unity 6000.3.11f1 (0 lỗi console) và chạy Unity Test Runner EditMode đạt 12/12 PASS; chưa kiểm tra trực quan trong Play Mode (bố cục chữ `SurveyUnlockHintText`, nghe thử âm lượng 5 SFX, bấm `H` và `F9` thực tế).
 - **Cách kiểm tra đề xuất:** Bấm Play trong `SampleScene` để kiểm tra `FirstTimeControlsOverlay` (lần đầu và phím `H`), thử thua để xem `THẤT BẠI` + dòng nhắc phía trên khảo sát, nghe đủ 5 âm thanh chiến đấu, bật Unity Profiler + nhấn `F9` để đo 60s FPS và kiểm tra `nfr_benchmark_report.txt`.
-- **Tôi đã kiểm tra / chỉnh sửa:** 
-- **Việc tiếp theo:** Người dùng chụp ảnh "SAU" (After) các cải tiến UX, chạy đo NFR/Profiler trong Editor và xác nhận khi sẵn sàng commit.
-- **Commit:** Chưa commit (chờ người dùng kiểm tra & xác nhận)
+- **Tôi đã kiểm tra / chỉnh sửa:** Đã xem và kiểm tra cấu hình bảng hướng dẫn (`FirstTimeControlsOverlay.cs`) cùng quy tắc bản quyền `CREDITS.md`; tự tìm, tải và thêm 8 tệp âm thanh `.mp3` từ Pixabay (`Slash1.mp3`, `Slash2.mp3`, `Roll.mp3`, `Player Hurt.mp3`, `BossSlash_1.mp3`, `BossSlash_2.mp3`, `Boss Windup.mp3`, `FootSteps_Knight.mp3`) vào `Assets/Audio/SFX/` và ghi bổ sung thông tin tác giả/nguồn vào cuối `CREDITS.md`.
+- **Việc tiếp theo:** Sửa lại `CREDITS.md`, thay thế toàn bộ âm thanh `.wav` cũ bằng `.mp3` trong Unity, đồng bộ tiếng bước chân Knight chạm đất (Boss không có tiếng bước chân) rồi commit lại.
+- **Commit:** [AI] feat: bảo mật Telemetry v0.9, vá TC-12, cải tiến UX và NFR tests
